@@ -2,6 +2,7 @@
   "name": "gemini-chat-frontend",
   "private": true,
   "version": "1.0.0",
+  "description": "React frontend for ClosedAI Gemini chatbot and learning lab",
   "type": "module",
   "scripts": {
     "dev": "vite",
