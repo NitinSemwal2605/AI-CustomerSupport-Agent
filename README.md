@@ -1,4 +1,4 @@
-# 🚀 Gemini API Practice Lab: Node.js + React.js
+# Gemini API Practice Lab: Node.js + React.js
 
 A full-stack learning application built with **Node.js (Express)** on the backend and **React.js (Vite)** on the frontend, featuring a clean **ChatGPT-inspired light-mode UI**.
 
@@ -11,7 +11,7 @@ Designed to teach and practice the core fundamentals of building AI-powered appl
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 gemini-node-react/
@@ -42,7 +42,7 @@ gemini-node-react/
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Get a Free Gemini API Key
 1. Go to [Google AI Studio](https://aistudio.google.com/).
@@ -85,7 +85,7 @@ Open your browser to: **`http://localhost:5173`**
 
 ---
 
-## 📚 Core Learning Concepts
+## Core Learning Concepts
 
 ### 1. API Authentication
 * **How it works:** The Google Gemini API authenticates requests via an API key passed either as an HTTP header (`x-goog-api-key`) or through the official SDK:
@@ -152,7 +152,7 @@ Open your browser to: **`http://localhost:5173`**
 
 ---
 
-## 🎨 UI Highlights
+## UI Highlights
 * **Clean ChatGPT Aesthetic:** Subtle borders, rounded bubbles, crisp typography, and off-white background.
 * **Live Inspector:** Click any message's telemetry pill to see the raw request/response JSON.
 * **Persona Presets:** Easily switch between personas (Helpful Assistant, Senior JS Architect, Socratic Tutor, Strict JSON Formatter).
