@@ -1,0 +1,23 @@
+{
+  "name": "gemini-node-react-learning-lab",
+  "version": "1.0.0",
+  "description": "Full-stack Node.js and React Gemini API practice application with light-mode ChatGPT UI",
+  "scripts": {
+    "dev": "node start-dev.js",
+    "start": "node start-dev.js",
+    "start:backend": "cd backend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "first-request": "cd backend && npm run first-request",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "gemini",
+    "gemini-api",
+    "react",
+    "nodejs",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT"
+}
