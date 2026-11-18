@@ -16,12 +16,16 @@ Designed to teach and practice the core fundamentals of building AI-powered appl
 ```
 gemini-node-react/
 ├── backend/
+│   ├── auth.js               # JWT Auth & bcrypt using Prisma ORM + PostgreSQL
+│   ├── db.js                 # Prisma Client database singleton
+│   ├── prisma/
+│   │   └── schema.prisma     # Prisma data models (PostgreSQL User schema)
 │   ├── first-request.js      # Standalone practice script for your first request
 │   ├── server.js             # Express API server with CORS and error handling
 │   ├── geminiService.js      # Gemini SDK integration & payload formatter
 │   ├── geminiPricing.js      # Token usage and USD cost calculator
-│   ├── package.json          # Express & @google/generative-ai dependencies
-│   ├── .env.example          # Template for GEMINI_API_KEY
+│   ├── package.json          # Express, @prisma/client & @google/generative-ai
+│   ├── .env.example          # Template for GEMINI_API_KEY & DATABASE_URL
 │   └── .env                  # Your local environment variables
 ├── frontend/
 │   ├── src/
@@ -95,7 +99,15 @@ Open your browser to: **`http://localhost:5173`**
   ```
 * **Best Practice:** Keep keys in server-side environment variables (`.env`). Never bundle API keys inside client-side React code.
 
-### 2. Request & Response Structure
+### 2. User Authentication (Prisma ORM + PostgreSQL)
+* **Architecture:** Uses Prisma ORM connected to PostgreSQL with bcrypt password hashing and JWT token issuance.
+* **Schema:** Defined in `backend/prisma/schema.prisma` with UUID primary keys and unique email constraints.
+* **Endpoints:**
+  * `POST /api/auth/register` - Create account, hash password, store in PostgreSQL, return JWT.
+  * `POST /api/auth/login` - Verify credentials against PostgreSQL, return session JWT.
+  * `GET /api/auth/me` - Authenticated profile route via Bearer token middleware.
+
+### 3. Request & Response Structure
 * **Request JSON:**
   ```json
   {
@@ -136,12 +148,12 @@ Open your browser to: **`http://localhost:5173`**
   }
   ```
 
-### 3. System, User, and Assistant/Model Roles
+### 4. System, User, and Assistant/Model Roles
 * **`system` (`systemInstruction`)**: Sets the model's persona, rules, constraints, and tone before user input is processed.
 * **`user`**: The human prompt submitted in the conversation.
 * **`model`**: The Gemini equivalent of the "assistant" role. Previous model responses in multi-turn chat history must use `role: "model"` so the model remembers past interactions.
 
-### 4. Token Usage & API Cost Calculations
+### 5. Token Usage & API Cost Calculations
 * **What is a Token?** A token is roughly 4 characters or ~0.75 English words.
 * **Gemini 1.5 & 2.5 Flash Pricing (Pay-As-You-Go):**
   * **Input Tokens (Prompt + System):** $0.075 per 1,000,000 tokens ($0.000000075 / token)

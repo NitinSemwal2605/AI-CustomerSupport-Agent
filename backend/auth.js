@@ -1,60 +1,43 @@
 /**
- * JWT Authentication Module
+ * JWT Authentication Module with Prisma + PostgreSQL
  * Handles User Registration, Login, Password Hashing (bcrypt),
- * and JWT Token Verification.
+ * and JWT Token Verification using PostgreSQL database via Prisma ORM.
  */
 
-const fs = require('fs');
-const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const prisma = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'gemini_secret_jwt_key_2026_super_secure';
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initialize users file if missing
-if (!fs.existsSync(USERS_FILE)) {
-  // Pre-seed with a demo account for quick testing
-  const demoSalt = bcrypt.genSaltSync(10);
-  const demoPasswordHash = bcrypt.hashSync('password123', demoSalt);
-  const initialUsers = [
-    {
-      id: 'demo-user-1',
-      name: 'Nitin',
-      email: 'nitin@gmail.com',
-      passwordHash: demoPasswordHash,
-      createdAt: new Date().toISOString()
-    }
-  ];
-  fs.writeFileSync(USERS_FILE, JSON.stringify(initialUsers, null, 2), 'utf-8');
-}
-
-function readUsers() {
-  try {
-    const raw = fs.readFileSync(USERS_FILE, 'utf-8');
-    return JSON.parse(raw) || [];
-  } catch (err) {
-    console.error('Error reading users file:', err);
-    return [];
-  }
-}
-
-function writeUsers(users) {
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing users file:', err);
-  }
-}
 
 /**
- * Register a new user
+ * Pre-seed demo user if database is empty
+ */
+async function initSeedUser() {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      const demoSalt = await bcrypt.genSalt(10);
+      const demoPasswordHash = await bcrypt.hash('password123', demoSalt);
+      await prisma.user.create({
+        data: {
+          name: 'Nitin',
+          email: 'nitin@gmail.com',
+          passwordHash: demoPasswordHash
+        }
+      });
+      console.log('✅ Demo account seeded into PostgreSQL (nitin@gmail.com / password123)');
+    }
+  } catch (err) {
+    console.warn('⚠️ Notice during user seed check:', err.message);
+  }
+}
+
+// Run initial check asynchronously
+initSeedUser();
+
+/**
+ * Register a new user in PostgreSQL
  */
 async function registerUser({ name, email, password }) {
   if (!email || !password) {
@@ -68,8 +51,10 @@ async function registerUser({ name, email, password }) {
     throw new Error('Password must be at least 6 characters.');
   }
 
-  const users = readUsers();
-  const existing = users.find((u) => u.email === cleanEmail);
+  const existing = await prisma.user.findUnique({
+    where: { email: cleanEmail }
+  });
+
   if (existing) {
     throw new Error('An account with this email/Gmail username already exists.');
   }
@@ -77,16 +62,13 @@ async function registerUser({ name, email, password }) {
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  const newUser = {
-    id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-    name: cleanName,
-    email: cleanEmail,
-    passwordHash,
-    createdAt: new Date().toISOString()
-  };
-
-  users.push(newUser);
-  writeUsers(users);
+  const newUser = await prisma.user.create({
+    data: {
+      name: cleanName,
+      email: cleanEmail,
+      passwordHash
+    }
+  });
 
   // Generate JWT token
   const token = jwt.sign(
@@ -102,7 +84,7 @@ async function registerUser({ name, email, password }) {
 }
 
 /**
- * Login user with email & password
+ * Login user with email & password via PostgreSQL
  */
 async function loginUser({ email, password }) {
   if (!email || !password) {
@@ -110,8 +92,9 @@ async function loginUser({ email, password }) {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const users = readUsers();
-  const user = users.find((u) => u.email === cleanEmail);
+  const user = await prisma.user.findUnique({
+    where: { email: cleanEmail }
+  });
 
   if (!user) {
     throw new Error('Invalid email or password. Please try again.');
