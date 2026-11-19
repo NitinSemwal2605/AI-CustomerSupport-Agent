@@ -1,11 +1,11 @@
 {
-  "name": "gemini-backend",
+  "name": "ai-customersupport-agent-backend",
   "version": "1.0.0",
-  "description": "Node.js Express backend for Gemini API practicing",
-  "main": "server.js",
+  "description": "Express.js & Prisma backend for AI Customer Support Agent with Gemini API & PostgreSQL",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
     "first-request": "node first-request.js",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

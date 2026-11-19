@@ -262,7 +262,7 @@ export default function App() {
           <div className="brand-row">
             <div className="brand-logo">
               <Sparkles size={18} color="#10a37f" />
-              <span>ClosedGPT</span>
+              <span>AI Support Agent</span>
             </div>
             <button
               className="toggle-sidebar-btn"

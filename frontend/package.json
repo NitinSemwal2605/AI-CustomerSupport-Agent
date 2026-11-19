@@ -1,8 +1,8 @@
 {
-  "name": "gemini-chat-frontend",
+  "name": "ai-customersupport-agent-frontend",
   "private": true,
   "version": "1.0.0",
-  "description": "React frontend for ClosedAI Gemini chatbot and learning lab",
+  "description": "React frontend for AI Customer Support Agent with live telemetry and model configuration",
   "type": "module",
   "scripts": {
     "dev": "vite",

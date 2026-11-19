@@ -24,7 +24,7 @@
 
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { calculateCost } = require('./geminiPricing');
+const { calculateCost } = require('./src/config/pricing');
 
 async function main() {
   console.log('='.repeat(70));

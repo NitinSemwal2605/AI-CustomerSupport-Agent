@@ -1,17 +1,16 @@
 /**
- * JWT Authentication Module with Prisma + PostgreSQL
- * Handles User Registration, Login, Password Hashing (bcrypt),
- * and JWT Token Verification using PostgreSQL database via Prisma ORM.
+ * Authentication Service
+ * Handles user management, password hashing, JWT generation,
+ * and database interactions with PostgreSQL via Prisma.
  */
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const prisma = require('./db');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'gemini_secret_jwt_key_2026_super_secure';
+const prisma = require('../config/db');
+const env = require('../config/env');
 
 /**
- * Pre-seed demo user if database is empty
+ * Seed default demo account if table is empty
  */
 async function initSeedUser() {
   try {
@@ -33,22 +32,26 @@ async function initSeedUser() {
   }
 }
 
-// Run initial check asynchronously
+// Seed on module load
 initSeedUser();
 
 /**
- * Register a new user in PostgreSQL
+ * Register a new user
  */
 async function registerUser({ name, email, password }) {
   if (!email || !password) {
-    throw new Error('Email/Gmail and password are required.');
+    const error = new Error('Email/Gmail and password are required.');
+    error.statusCode = 400;
+    throw error;
   }
 
   const cleanEmail = email.trim().toLowerCase();
   const cleanName = (name || cleanEmail.split('@')[0]).trim();
 
   if (password.length < 6) {
-    throw new Error('Password must be at least 6 characters.');
+    const error = new Error('Password must be at least 6 characters.');
+    error.statusCode = 400;
+    throw error;
   }
 
   const existing = await prisma.user.findUnique({
@@ -56,7 +59,9 @@ async function registerUser({ name, email, password }) {
   });
 
   if (existing) {
-    throw new Error('An account with this email/Gmail username already exists.');
+    const error = new Error('An account with this email/Gmail username already exists.');
+    error.statusCode = 400;
+    throw error;
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -70,10 +75,9 @@ async function registerUser({ name, email, password }) {
     }
   });
 
-  // Generate JWT token
   const token = jwt.sign(
     { id: newUser.id, name: newUser.name, email: newUser.email },
-    JWT_SECRET,
+    env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
@@ -84,11 +88,13 @@ async function registerUser({ name, email, password }) {
 }
 
 /**
- * Login user with email & password via PostgreSQL
+ * Authenticate existing user with email and password
  */
 async function loginUser({ email, password }) {
   if (!email || !password) {
-    throw new Error('Please enter both email/Gmail and password.');
+    const error = new Error('Please enter both email/Gmail and password.');
+    error.statusCode = 400;
+    throw error;
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -97,17 +103,21 @@ async function loginUser({ email, password }) {
   });
 
   if (!user) {
-    throw new Error('Invalid email or password. Please try again.');
+    const error = new Error('Invalid email or password. Please try again.');
+    error.statusCode = 401;
+    throw error;
   }
 
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
-    throw new Error('Invalid email or password. Please try again.');
+    const error = new Error('Invalid email or password. Please try again.');
+    error.statusCode = 401;
+    throw error;
   }
 
   const token = jwt.sign(
     { id: user.id, name: user.name, email: user.email },
-    JWT_SECRET,
+    env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
@@ -117,28 +127,8 @@ async function loginUser({ email, password }) {
   };
 }
 
-/**
- * Express middleware to verify JWT token
- */
-function authMiddleware(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // "Bearer <TOKEN>"
-
-  if (!token) {
-    return res.status(401).json({ success: false, error: 'Authentication required. No token provided.' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ success: false, error: 'Invalid or expired session. Please log in again.' });
-  }
-}
-
 module.exports = {
   registerUser,
   loginUser,
-  authMiddleware
+  initSeedUser
 };

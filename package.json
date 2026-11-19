@@ -1,7 +1,7 @@
 {
-  "name": "gemini-node-react-learning-lab",
+  "name": "ai-customersupport-agent",
   "version": "1.0.0",
-  "description": "Full-stack Node.js and React Gemini API practice application with light-mode ChatGPT UI",
+  "description": "Enterprise-grade AI Customer Support Agent and Applied AI Laboratory — progressing from LLM APIs and prompt engineering to RAG (Retrieval-Augmented Generation), vector databases, tool calling, and autonomous support workflows.",
   "scripts": {
     "dev": "node start-dev.js",
     "start": "node start-dev.js",

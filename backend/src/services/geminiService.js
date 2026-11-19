@@ -5,33 +5,26 @@
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { calculateCost } = require('./geminiPricing');
+const { calculateCost } = require('../config/pricing');
+const env = require('../config/env');
 
 /**
  * Validates and retrieves the active Gemini API key.
- * Authentication order:
- * 1. Explicit key passed via parameter (e.g. from UI settings)
- * 2. Environment variable GEMINI_API_KEY
  */
 function resolveApiKey(customKey) {
-  const key = customKey || process.env.GEMINI_API_KEY;
+  const key = customKey || env.GEMINI_API_KEY;
   if (!key || key.trim() === '') {
-    throw new Error(
-      'Gemini API Key is missing. Provide it in .env as GEMINI_API_KEY or enter it in the UI Settings.'
+    const error = new Error(
+      'Gemini API Key is missing. Provide it in backend/.env as GEMINI_API_KEY or enter it in Settings.'
     );
+    error.statusCode = 401;
+    throw error;
   }
   return key.trim();
 }
 
 /**
  * Normalize chat roles for Gemini API.
- * 
- * NOTE:
- * - OpenAI / Anthropic use: 'system', 'user', 'assistant'
- * - Gemini API uses:
- *     - 'system' -> Provided in `systemInstruction` config
- *     - 'user'   -> Sent in contents array with role: "user"
- *     - 'model'  -> Sent in contents array with role: "model" (Gemini's equivalent of "assistant")
  */
 function normalizeContents(messages = []) {
   return messages.map((msg) => {
@@ -41,8 +34,8 @@ function normalizeContents(messages = []) {
     }
     return {
       role: role === 'model' ? 'model' : 'user',
-      parts: Array.isArray(msg.parts) 
-        ? msg.parts 
+      parts: Array.isArray(msg.parts)
+        ? msg.parts
         : [{ text: typeof msg.content === 'string' ? msg.content : (msg.text || '') }]
     };
   });
@@ -50,17 +43,11 @@ function normalizeContents(messages = []) {
 
 /**
  * Send a chat completion request to Gemini API
- * @param {object} options
- * @param {string} [options.apiKey] - Optional custom API key
- * @param {string} [options.model] - Model name (e.g. "gemini-2.5-flash", "gemini-1.5-flash")
- * @param {string} [options.systemInstruction] - System prompt defining persona & rules
- * @param {Array} options.messages - Array of { role: 'user' | 'assistant' | 'model', content: string }
- * @param {object} [options.config] - Temperature, maxOutputTokens, topP
  */
 async function sendGeminiChat({
   apiKey: customKey,
   model = 'gemini-flash-latest',
-  systemInstruction = 'You are a helpful, clear, and concise AI assistant.',
+  systemInstruction = 'You are a helpful, clear, and concise AI customer support assistant.',
   messages = [],
   config = {}
 }) {
@@ -99,7 +86,6 @@ async function sendGeminiChat({
 
   let lastError = null;
 
-  // Attempt request with the selected model (retry once if 503 high demand spike)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const result = await generativeModel.generateContent({ contents });
@@ -155,12 +141,12 @@ async function sendGeminiChat({
             },
             user: {
               role: 'user',
-              purpose: 'The prompt or input provided by the human user.',
+              purpose: 'The prompt or input provided by the customer or engineer.',
               appliedAs: '{ role: "user", parts: [{ text: "..." }] }'
             },
             model: {
               role: 'model (assistant)',
-              purpose: 'Previous AI responses in multi-turn conversation history.',
+              purpose: 'Previous AI responses in multi-turn customer conversation history.',
               appliedAs: '{ role: "model", parts: [{ text: "..." }] }'
             }
           }
@@ -170,7 +156,6 @@ async function sendGeminiChat({
       lastError = error;
       const isHighDemand = error.message && (error.message.includes('503') || error.message.includes('high demand'));
       if (isHighDemand && attempt === 1) {
-        // Wait 1.5 seconds before retrying same model
         await new Promise((r) => setTimeout(r, 1500));
         continue;
       }
@@ -193,7 +178,7 @@ async function sendGeminiChat({
 }
 
 /**
- * Count tokens for a given prompt without sending a generation request
+ * Count tokens for a given prompt
  */
 async function countPromptTokens({ apiKey: customKey, model = 'gemini-2.5-flash', text = '' }) {
   const apiKey = resolveApiKey(customKey);

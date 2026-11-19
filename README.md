@@ -1,46 +1,82 @@
-# Gemini API Practice Lab: Node.js + React.js
+# AI Customer Support Agent
 
-A full-stack learning application built with **Node.js (Express)** on the backend and **React.js (Vite)** on the frontend, featuring a clean **ChatGPT-inspired light-mode UI**.
+A full-stack, enterprise-grade AI Customer Support Agent and Applied AI learning laboratory. Built with **Node.js (Express)**, **Prisma ORM**, and **PostgreSQL** on the backend, and **React.js (Vite)** on the frontend.
 
-Designed to teach and practice the core fundamentals of building AI-powered applications with the **Google Gemini API**:
-1. **API Authentication**: Secure key management in Node.js
-2. **First API Request**: Minimal standalone Node.js script & live web interface
-3. **Request & Response Structure**: Complete JSON schema breakdown
-4. **Roles**: Exploring `system`, `user`, and `model` (assistant) roles
-5. **Tokens & Costs**: Real-time token tracking and exact USD billing calculations
+This repository serves as a practical, production-oriented project for implementing end-to-end Applied AI concepts—scaling from core Gemini LLM integrations and telemetry up through Retrieval-Augmented Generation (RAG), vector databases, function calling, and autonomous support workflows.
+
+---
+
+## Applied AI Architecture & Roadmap
+
+### Phase 1: LLM Foundations & Production Infrastructure (Completed)
+- **API Integration**: Direct Google Gemini API communication via `@google/generative-ai`.
+- **System Instructions & Roles**: Support agent personas with strict role boundaries (`system`, `user`, `model`).
+- **Telemetry & Cost Tracking**: Exact prompt and completion token accounting with real-time USD billing calculations.
+- **Relational Data & Auth**: User authentication, password hashing with bcrypt, JWT session management, and PostgreSQL persistence through Prisma ORM.
+
+### Phase 2: Retrieval-Augmented Generation (RAG) (In Progress / Next)
+- **Knowledge Base Ingestion**: Markdown, PDF, and FAQ document parsing for customer support domains.
+- **Semantic Chunking**: Context-preserving sliding window chunking with metadata tagging.
+- **Vector Embeddings**: Generating embeddings using Google text-embedding models.
+- **Vector Database**: Semantic similarity search and cosine distance ranking to inject grounded domain knowledge into customer prompts.
+
+### Phase 3: Function Calling & Tool Use (Roadmap)
+- **Support Operations**: Live tools for ticket status lookup, order tracking, and refund eligibility verification.
+- **Structured Outputs**: Enforcing JSON schema validation on tool arguments and responses.
+
+### Phase 4: Autonomous Support Workflows (Roadmap)
+- **Conversation State & Long-Term Memory**: Multi-turn history summarization and customer profile persistence.
+- **Guardrails & Escalation**: Sentiment analysis, safety filters, and automated escalation to human support tiers.
 
 ---
 
 ## Project Structure
 
 ```
-gemini-node-react/
+AI-CustomerSupport-Agent/
 ├── backend/
-│   ├── auth.js               # JWT Auth & bcrypt using Prisma ORM + PostgreSQL
-│   ├── db.js                 # Prisma Client database singleton
+│   ├── src/
+│   │   ├── config/           # Database, environment variables & pricing
+│   │   │   ├── env.js
+│   │   │   ├── db.js
+│   │   │   └── pricing.js
+│   │   ├── controllers/      # HTTP request & response handlers
+│   │   │   ├── authController.js
+│   │   │   └── chatController.js
+│   │   ├── services/         # Decoupled business & AI logic
+│   │   │   ├── authService.js
+│   │   │   └── geminiService.js
+│   │   ├── middlewares/      # JWT auth, error & 404 handlers
+│   │   │   ├── authMiddleware.js
+│   │   │   ├── errorHandler.js
+│   │   │   └── notFoundHandler.js
+│   │   ├── routes/           # Modular Express route definitions
+│   │   │   ├── authRoutes.js
+│   │   │   ├── chatRoutes.js
+│   │   │   └── index.js
+│   │   ├── app.js            # Express application setup
+│   │   └── server.js         # HTTP server listener
 │   ├── prisma/
 │   │   └── schema.prisma     # Prisma data models (PostgreSQL User schema)
 │   ├── first-request.js      # Standalone practice script for your first request
-│   ├── server.js             # Express API server with CORS and error handling
-│   ├── geminiService.js      # Gemini SDK integration & payload formatter
-│   ├── geminiPricing.js      # Token usage and USD cost calculator
 │   ├── package.json          # Express, @prisma/client & @google/generative-ai
 │   ├── .env.example          # Template for GEMINI_API_KEY & DATABASE_URL
-│   └── .env                  # Your local environment variables
+│   └── .env                  # Local environment variables
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── AuthModal.jsx         # User registration & login modal
 │   │   │   ├── FormattedText.jsx     # Markdown & copyable code blocks
 │   │   │   ├── InspectorModal.jsx    # Raw request/response & cost telemetry
-│   │   │   ├── SettingsModal.jsx     # Dynamic API key & parameter tuner
-│   │   │   └── LearningLabModal.jsx  # Interactive in-app learning guide
-│   │   ├── App.jsx           # ChatGPT-style light-themed layout
-│   │   ├── index.css         # Clean, minimalist light-mode aesthetic
+│   │   │   └── SettingsModal.jsx     # Dynamic API key & parameter tuner
+│   │   ├── App.jsx           # Customer Support Agent interface
+│   │   ├── index.css         # Minimalist theme styles (light & dark mode)
 │   │   └── main.jsx          # React DOM entry
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js        # API proxy to backend
-├── package.json              # Root project scripts
+├── package.json              # Root orchestration scripts
+├── start-dev.js              # One-command development runner (DB + Server + Frontend)
 └── README.md
 ```
 
@@ -48,124 +84,82 @@ gemini-node-react/
 
 ## Quick Start
 
-### 1. Get a Free Gemini API Key
-1. Go to [Google AI Studio](https://aistudio.google.com/).
-2. Sign in with your Google account.
-3. Click **"Get API key"** and copy your key.
+### 1. Prerequisites
+- Node.js (v18 or higher)
+- PostgreSQL (local instance or cloud database such as Supabase / Neon)
+- Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/)
 
 ### 2. Configure Backend Environment
-Open `gemini-node-react/backend/.env` and insert your key:
+Copy the example environment file in `backend`:
 ```bash
-GEMINI_API_KEY=AIzaSyYourGeneratedKeyHere
+cp backend/.env.example backend/.env
+```
+
+Configure `backend/.env`:
+```bash
+# Google Gemini API Key
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Server Port
 PORT=5000
-```
-*(Note: You can also enter the API key directly in the web UI settings!)*
 
-### 3. Practice: Run Your First Node.js API Request
-We included a self-contained learning script with rich terminal output:
-```bash
-cd backend
-node first-request.js
-```
-This tests your API authentication, prints the request payload, receives the model response, and displays token counts with pricing calculations.
+# JWT Authentication Secret
+JWT_SECRET=your_jwt_secret_key_here
 
-### 4. Start the Full-Stack Application
-
-**Start the Backend Server (Terminal 1):**
-```bash
-cd backend
-npm start
-# Server runs on http://localhost:5000
+# PostgreSQL Database Connection URL for Prisma
+DATABASE_URL="postgresql://user:password@localhost:5432/closedai_db?schema=public"
 ```
 
-**Start the React Frontend (Terminal 2):**
+### 3. Sync Database Schema
+Push the Prisma schema to your PostgreSQL database:
 ```bash
-cd frontend
+npm run db:push
+```
+
+### 4. Start the Application
+Run both backend and frontend with the root development script:
+```bash
 npm run dev
-# Vite runs on http://localhost:5173
 ```
+Alternatively, run each service separately:
+- **Backend:** `cd backend && npm start` (runs on `http://localhost:5000`)
+- **Frontend:** `cd frontend && npm run dev` (runs on `http://localhost:5173`)
 
 Open your browser to: **`http://localhost:5173`**
 
 ---
 
-## Core Learning Concepts
+## Core Technical Concepts
 
-### 1. API Authentication
-* **How it works:** The Google Gemini API authenticates requests via an API key passed either as an HTTP header (`x-goog-api-key`) or through the official SDK:
-  ```javascript
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  ```
-* **Best Practice:** Keep keys in server-side environment variables (`.env`). Never bundle API keys inside client-side React code.
+### 1. Gemini API Authentication & Model Selection
+- Authentication is handled securely on the server via `process.env.GEMINI_API_KEY`.
+- Supports dynamic client-level keys through request headers (`x-gemini-api-key`) for testing and sandboxing.
+- Direct model selection (`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-flash-latest`) with custom temperature and max token configurations.
 
 ### 2. User Authentication (Prisma ORM + PostgreSQL)
-* **Architecture:** Uses Prisma ORM connected to PostgreSQL with bcrypt password hashing and JWT token issuance.
-* **Schema:** Defined in `backend/prisma/schema.prisma` with UUID primary keys and unique email constraints.
-* **Endpoints:**
-  * `POST /api/auth/register` - Create account, hash password, store in PostgreSQL, return JWT.
-  * `POST /api/auth/login` - Verify credentials against PostgreSQL, return session JWT.
-  * `GET /api/auth/me` - Authenticated profile route via Bearer token middleware.
+- **Database Schema**: Managed in `backend/prisma/schema.prisma` with UUID primary keys and unique constraints.
+- **Security**: Passwords hashed using `bcryptjs` with salt rounds. Sessions managed via signed JWT tokens.
+- **Endpoints**:
+  - `POST /api/auth/register`: Create user account and return JWT.
+  - `POST /api/auth/login`: Authenticate credentials against PostgreSQL and return JWT.
+  - `GET /api/auth/me`: Validate JWT token and retrieve current user context.
 
-### 3. Request & Response Structure
-* **Request JSON:**
-  ```json
-  {
-    "model": "gemini-1.5-flash",
-    "systemInstruction": {
-      "role": "system",
-      "parts": [{ "text": "You are a senior JavaScript mentor." }]
-    },
-    "generationConfig": {
-      "temperature": 0.7,
-      "maxOutputTokens": 2048
-    },
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{ "text": "Explain what a closure is." }]
-      }
-    ]
-  }
-  ```
-* **Response JSON:**
-  ```json
-  {
-    "candidates": [
-      {
-        "content": {
-          "role": "model",
-          "parts": [{ "text": "A closure is..." }]
-        },
-        "finishReason": "STOP"
-      }
-    ],
-    "usageMetadata": {
-      "promptTokenCount": 24,
-      "candidatesTokenCount": 85,
-      "totalTokenCount": 109
-    }
-  }
-  ```
+### 3. Request & Response Telemetry
+- Every exchange captures complete round-trip JSON payloads:
+  - System instructions
+  - Generation configuration (`temperature`, `maxOutputTokens`)
+  - Full conversation history (`contents` array with `user` and `model` roles)
+  - Finish reason (`STOP`, `MAX_TOKENS`, etc.)
+  - Token counts (`promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`)
+- Exact USD cost calculated per interaction based on official Gemini pricing tiers:
+  $$\text{Total Cost} = \left(\frac{\text{PromptTokens}}{1,000,000} \times \text{InputRate}\right) + \left(\frac{\text{CandidateTokens}}{1,000,000} \times \text{OutputRate}\right)$$
 
-### 4. System, User, and Assistant/Model Roles
-* **`system` (`systemInstruction`)**: Sets the model's persona, rules, constraints, and tone before user input is processed.
-* **`user`**: The human prompt submitted in the conversation.
-* **`model`**: The Gemini equivalent of the "assistant" role. Previous model responses in multi-turn chat history must use `role: "model"` so the model remembers past interactions.
-
-### 5. Token Usage & API Cost Calculations
-* **What is a Token?** A token is roughly 4 characters or ~0.75 English words.
-* **Gemini 1.5 & 2.5 Flash Pricing (Pay-As-You-Go):**
-  * **Input Tokens (Prompt + System):** $0.075 per 1,000,000 tokens ($0.000000075 / token)
-  * **Output Tokens (Candidates):** $0.30 per 1,000,000 tokens ($0.00000030 / token)
-* **Formula:**
-  $$\text{Total Cost} = \left(\frac{\text{PromptTokens}}{1,000,000} \times 0.075\right) + \left(\frac{\text{OutputTokens}}{1,000,000} \times 0.30\right)$$
-* In our application, every assistant message displays an interactive **"Inspector & Cost"** button that shows the exact calculation.
+### 4. Interactive Telemetry Inspector
+- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and cost breakdowns directly inside the UI.
 
 ---
 
-## UI Highlights
-* **Clean ChatGPT Aesthetic:** Subtle borders, rounded bubbles, crisp typography, and off-white background.
-* **Live Inspector:** Click any message's telemetry pill to see the raw request/response JSON.
-* **Persona Presets:** Easily switch between personas (Helpful Assistant, Senior JS Architect, Socratic Tutor, Strict JSON Formatter).
-* **Live Token & Cost Tally:** Cumulative counter tracking session spending.
+## Database Management Scripts
+- `npm run db:push`: Synchronize Prisma schema with PostgreSQL without generating SQL migrations.
+- `npm run db:generate`: Regenerate Prisma Client.
+- `npm run db:studio`: Launch Prisma Studio web GUI to browse and edit database records.

@@ -13,8 +13,8 @@ const PRICING_TIERS = {
   },
   'gemini-2.5-flash': {
     name: 'Gemini 2.5 Flash (Fastest & Cost-Efficient)',
-    inputRatePerMillion: 0.075,  // $0.075 per 1M tokens
-    outputRatePerMillion: 0.30,  // $0.30 per 1M tokens
+    inputRatePerMillion: 0.075,
+    outputRatePerMillion: 0.30,
     freeTierAvailable: true,
   },
   'gemini-1.5-flash': {
@@ -25,8 +25,8 @@ const PRICING_TIERS = {
   },
   'gemini-1.5-pro': {
     name: 'Gemini 1.5 Pro (Complex Reasoning)',
-    inputRatePerMillion: 1.25,   // $1.25 per 1M tokens (prompts <= 128k)
-    outputRatePerMillion: 5.00,   // $5.00 per 1M tokens
+    inputRatePerMillion: 1.25,
+    outputRatePerMillion: 5.00,
     freeTierAvailable: true,
   },
   'gemini-2.0-flash-exp': {
@@ -45,7 +45,6 @@ const PRICING_TIERS = {
  * @returns {object} Detailed cost calculation
  */
 function calculateCost(modelName = 'gemini-2.5-flash', promptTokens = 0, candidatesTokens = 0) {
-  // Normalize model name
   const modelKey = Object.keys(PRICING_TIERS).find(k => modelName.includes(k)) || 'gemini-1.5-flash';
   const tier = PRICING_TIERS[modelKey];
 
