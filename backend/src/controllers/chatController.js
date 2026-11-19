@@ -129,25 +129,25 @@ async function handleCountTokens(req, res, next) {
 function handleGetModels(req, res) {
   const models = [
     {
-      id: 'gemini-flash-latest',
-      name: 'Gemini Flash Latest',
-      tag: 'Recommended (Official Google AI Studio)',
-      description: 'The latest release of Gemini Flash with maximum speed and cost efficiency.',
-      pricing: PRICING_TIERS['gemini-flash-latest']
-    },
-    {
       id: 'gemini-2.5-flash',
       name: 'Gemini 2.5 Flash',
-      tag: 'Fast & High Throughput',
-      description: 'Next-gen lightweight model, optimized for speed and cost efficiency.',
+      tag: 'Recommended (Search Grounding Enabled)',
+      description: 'Optimized for high-speed customer support and live product search grounding.',
       pricing: PRICING_TIERS['gemini-2.5-flash']
     },
     {
-      id: 'gemini-2.5-pro',
-      name: 'Gemini 2.5 Pro',
-      tag: 'Complex Reasoning',
-      description: 'High-capability model designed for sophisticated reasoning and coding.',
-      pricing: PRICING_TIERS['gemini-1.5-pro']
+      id: 'gemini-3.5-flash-lite',
+      name: 'Gemini 3.5 Flash Lite',
+      tag: 'Ultra-Fast & Lightweight',
+      description: 'Extremely fast next-gen model for instant responses with minimum latency.',
+      pricing: PRICING_TIERS['gemini-3.5-flash-lite']
+    },
+    {
+      id: 'gemini-flash-latest',
+      name: 'Gemini Flash Latest',
+      tag: 'Official Google AI Studio',
+      description: 'Standard production Gemini Flash model with high reliability.',
+      pricing: PRICING_TIERS['gemini-flash-latest']
     }
   ];
 

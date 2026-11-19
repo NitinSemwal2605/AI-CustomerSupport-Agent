@@ -10,6 +10,9 @@
     "dev:frontend": "cd frontend && npm run dev",
     "first-request": "cd backend && npm run first-request",
     "build:frontend": "cd frontend && npm run build",
+    "db:start": "cd backend && npm run db:start",
+    "db:stop": "cd backend && npm run db:stop",
+    "db:status": "cd backend && npm run db:status",
     "db:push": "cd backend && npm run db:push",
     "db:studio": "cd backend && npm run db:studio"
   },

@@ -17,6 +17,12 @@ const PRICING_TIERS = {
     outputRatePerMillion: 0.30,
     freeTierAvailable: true,
   },
+  'gemini-3.5-flash-lite': {
+    name: 'Gemini 3.5 Flash Lite (Ultra-Fast & Lightweight)',
+    inputRatePerMillion: 0.0375,
+    outputRatePerMillion: 0.15,
+    freeTierAvailable: true,
+  },
   'gemini-1.5-flash': {
     name: 'Gemini 1.5 Flash (General Purpose Lightweight)',
     inputRatePerMillion: 0.075,

@@ -10,7 +10,10 @@ import {
   FileJson,
   LogOut,
   Sun,
-  Moon
+  Moon,
+  ExternalLink,
+  Globe,
+  ShoppingBag
 } from 'lucide-react';
 import FormattedText from './components/FormattedText';
 import InspectorModal from './components/InspectorModal';
@@ -175,7 +178,6 @@ export default function App() {
         body: JSON.stringify({
           apiKey: apiKey.trim() || undefined,
           model: selectedModel,
-          systemInstruction: '', // No system persona, fully driven by user prompt
           messages: apiHistory,
           config: {
             temperature,
@@ -206,6 +208,8 @@ export default function App() {
           finishReason: data.finishReason,
           usage: data.usage,
           inspector: data.inspector,
+          sources: data.sources || [],
+          webSearchQueries: data.webSearchQueries || [],
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -341,8 +345,10 @@ export default function App() {
         {messages.length === 0 ? (
           <div className="centered-home-wrapper">
             <div className="centered-home-inner">
-              <h1 className="welcome-headline">Welcome back, {username}</h1>
-              <p className="welcome-subtext">What would you like to explore or create today?</p>
+              <h1 className="welcome-headline">AI Customer Support Agent</h1>
+              <p className="welcome-subtext">
+                Ask about any product, compare prices across stores, or get technical and shopping assistance with live verified links.
+              </p>
 
               {/* Centered Search/Chat Bar with MODEL SELECTION ONLY INSIDE */}
               <div className="search-box-unified">
@@ -350,7 +356,7 @@ export default function App() {
                   ref={centerTextareaRef}
                   className="chat-textarea"
                   rows="2"
-                  placeholder="Ask anything, write code, or draft content..."
+                  placeholder="Ask about any product, specs, or where to buy with links..."
                   value={inputValue}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -366,8 +372,8 @@ export default function App() {
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
                     >
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                      <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
                       <option value="gemini-flash-latest">Gemini Flash Latest</option>
                     </select>
                   </div>
@@ -381,6 +387,31 @@ export default function App() {
                     <Send size={14} />
                   </button>
                 </div>
+              </div>
+
+              {/* Quick Customer Support & Product Research Suggestions */}
+              <div className="prompt-suggestions">
+                <button
+                  className="suggestion-pill"
+                  onClick={() => handleSendMessage('Where can I buy Sony WH-1000XM5 headphones and what are the best store links?')}
+                >
+                  <ShoppingBag size={13} color="var(--accent-green)" />
+                  <span>Where can I buy Sony WH-1000XM5 with links?</span>
+                </button>
+                <button
+                  className="suggestion-pill"
+                  onClick={() => handleSendMessage('Compare MacBook Air M3 vs Dell XPS 13 specs, prices, and retailer links')}
+                >
+                  <Globe size={13} color="var(--accent-blue)" />
+                  <span>Compare MacBook Air M3 vs Dell XPS 13</span>
+                </button>
+                <button
+                  className="suggestion-pill"
+                  onClick={() => handleSendMessage('What are the top 3 noise cancelling earbuds under $150 with purchase links?')}
+                >
+                  <ShoppingBag size={13} color="var(--accent-purple)" />
+                  <span>Top noise cancelling earbuds under $150</span>
+                </button>
               </div>
             </div>
           </div>
@@ -402,6 +433,40 @@ export default function App() {
                     <div className="message-body">
                       <div className="message-bubble">
                         <FormattedText text={msg.content} />
+
+                        {/* Verified Grounding Sources & Store Links */}
+                        {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                          <div className="grounding-sources-block">
+                            <div className="grounding-sources-header">
+                              <Globe size={13} color="var(--accent-green)" />
+                              <span>Verified Store Links & Sources ({msg.sources.length})</span>
+                            </div>
+                            <div className="grounding-sources-list">
+                              {msg.sources.slice(0, 8).map((source, sIdx) => {
+                                let label = source.title || 'Store Link';
+                                try {
+                                  const parsed = new URL(source.url);
+                                  const domain = parsed.hostname.replace('www.', '');
+                                  label = source.title ? `${source.title} (${domain})` : domain;
+                                } catch {}
+
+                                return (
+                                  <a
+                                    key={sIdx}
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="grounding-source-chip"
+                                    title={source.title || source.url}
+                                  >
+                                    <span className="source-chip-text">{label}</span>
+                                    <ExternalLink size={10} className="source-chip-icon" />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Telemetry metadata for Model responses */}
@@ -489,8 +554,8 @@ export default function App() {
                         value={selectedModel}
                         onChange={(e) => setSelectedModel(e.target.value)}
                       >
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                        <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
                         <option value="gemini-flash-latest">Gemini Flash Latest</option>
                       </select>
                     </div>
