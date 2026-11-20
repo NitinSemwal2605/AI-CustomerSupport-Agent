@@ -3,19 +3,42 @@
  * Handles conversation completions, API testing, models listing, and token counting.
  */
 
+const jwt = require('jsonwebtoken');
 const { PRICING_TIERS } = require('../config/pricing');
 const { sendGeminiChat, countPromptTokens } = require('../services/geminiService');
+const { saveChatTurn } = require('../services/conversationService');
+const prisma = require('../config/db');
 const env = require('../config/env');
 
 async function handleChat(req, res, next) {
   try {
     const keyFromHeader = req.headers['x-gemini-api-key'];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    let userId = null;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, env.JWT_SECRET);
+        if (decoded?.id) {
+          const user = await prisma.user.findUnique({
+            where: { id: decoded.id },
+            select: { id: true }
+          });
+          if (user) {
+            userId = user.id;
+          }
+        }
+      } catch {}
+    }
+
     const {
       apiKey: keyFromBody,
       model = 'gemini-2.5-flash',
       systemInstruction = '',
       messages = [],
-      config = {}
+      config = {},
+      conversationId
     } = req.body;
 
     const activeKey = keyFromBody || keyFromHeader || env.GEMINI_API_KEY;
@@ -47,7 +70,30 @@ async function handleChat(req, res, next) {
       return res.status(500).json(chatResponse);
     }
 
-    return res.json(chatResponse);
+    // Persist conversation to PostgreSQL if user is logged in
+    let finalConversationId = conversationId || null;
+    if (userId) {
+      try {
+        const lastUserMsg = messages.filter((m) => m.role === 'user').pop();
+        const promptText = typeof lastUserMsg?.content === 'string'
+          ? lastUserMsg.content
+          : (lastUserMsg?.text || 'Conversation');
+
+        finalConversationId = await saveChatTurn({
+          userId,
+          conversationId,
+          userPrompt: promptText,
+          assistantResponse: chatResponse
+        });
+      } catch (saveErr) {
+        console.warn('⚠️ Could not save conversation to PostgreSQL:', saveErr.message);
+      }
+    }
+
+    return res.json({
+      ...chatResponse,
+      conversationId: finalConversationId
+    });
   } catch (err) {
     next(err);
   }

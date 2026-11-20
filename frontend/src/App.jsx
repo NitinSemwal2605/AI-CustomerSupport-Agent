@@ -13,7 +13,13 @@ import {
   Moon,
   ExternalLink,
   Globe,
-  ShoppingBag
+  ShoppingBag,
+  MessageSquare,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  CheckCircle2
 } from 'lucide-react';
 import FormattedText from './components/FormattedText';
 import InspectorModal from './components/InspectorModal';
@@ -34,6 +40,12 @@ export default function App() {
     }
   });
   const [token, setToken] = useState(() => localStorage.getItem('gemini_auth_token') || '');
+
+  // Saved Conversations State (Per User)
+  const [conversations, setConversations] = useState([]);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [editingConversationId, setEditingConversationId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   // Chat State
   const [messages, setMessages] = useState([]);
@@ -128,11 +140,116 @@ export default function App() {
     setUser(null);
     setToken('');
     setMessages([]);
+    setConversations([]);
+    setCurrentConversationId(null);
+  };
+
+  // Load user conversations from PostgreSQL
+  const fetchConversations = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/conversations', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConversations(data.conversations || []);
+      }
+    } catch (err) {
+      console.warn('Could not load conversations:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchConversations();
+    } else {
+      setConversations([]);
+      setCurrentConversationId(null);
+    }
+  }, [token]);
+
+  // Load a conversation's messages
+  const selectConversation = async (convId) => {
+    if (convId === currentConversationId || isLoading) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/conversations/${convId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.conversation) {
+        setCurrentConversationId(data.conversation.id);
+        setMessages(data.conversation.messages || []);
+      }
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const startNewChat = () => {
+    setCurrentConversationId(null);
     setMessages([]);
     setInputValue('');
+  };
+
+  // Start inline rename
+  const handleStartRename = (conv, e) => {
+    e.stopPropagation();
+    setEditingConversationId(conv.id);
+    setEditingTitle(conv.title);
+  };
+
+  // Save renamed title
+  const handleSaveRename = async (convId) => {
+    if (!editingTitle.trim()) {
+      setEditingConversationId(null);
+      return;
+    }
+    const cleanTitle = editingTitle.trim();
+    try {
+      const res = await fetch(`/api/conversations/${convId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: cleanTitle })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === convId ? { ...c, title: cleanTitle } : c))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to rename conversation:', err);
+    } finally {
+      setEditingConversationId(null);
+    }
+  };
+
+  // Delete conversation
+  const handleDeleteConversation = async (convId, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this conversation?')) return;
+    try {
+      const res = await fetch(`/api/conversations/${convId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConversations((prev) => prev.filter((c) => c.id !== convId));
+        if (currentConversationId === convId) {
+          startNewChat();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -179,6 +296,7 @@ export default function App() {
           apiKey: apiKey.trim() || undefined,
           model: selectedModel,
           messages: apiHistory,
+          conversationId: currentConversationId,
           config: {
             temperature,
             maxOutputTokens: maxTokens
@@ -214,6 +332,12 @@ export default function App() {
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // If conversationId was returned, update current ID and refresh list
+        if (data.conversationId) {
+          setCurrentConversationId(data.conversationId);
+          fetchConversations();
+        }
 
         if (data.usage) {
           setSessionStats((prev) => ({
@@ -286,7 +410,82 @@ export default function App() {
         </div>
 
         <div className="sidebar-content">
-          {/* Model selection is intentionally removed from sidebar per user request and placed inside search bar */}
+          <div className="sidebar-section-title">Your Conversations</div>
+          {conversations.length === 0 ? (
+            <div className="empty-conversations-hint">
+              <span>No saved chats yet. Start a conversation to save!</span>
+            </div>
+          ) : (
+            <div className="conversations-list">
+              {conversations.map((conv) => {
+                const isActive = conv.id === currentConversationId;
+                const isEditing = editingConversationId === conv.id;
+
+                return (
+                  <div
+                    key={conv.id}
+                    className={`conversation-item ${isActive ? 'active' : ''}`}
+                    onClick={() => !isEditing && selectConversation(conv.id)}
+                  >
+                    <MessageSquare size={14} className="conversation-icon" />
+
+                    {isEditing ? (
+                      <div className="conversation-edit-row" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          className="conversation-rename-input"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveRename(conv.id);
+                            if (e.key === 'Escape') setEditingConversationId(null);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          className="conv-inline-btn check"
+                          onClick={() => handleSaveRename(conv.id)}
+                          title="Save title"
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          className="conv-inline-btn cancel"
+                          onClick={() => setEditingConversationId(null)}
+                          title="Cancel"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="conversation-title" title={conv.title}>
+                          {conv.title}
+                        </span>
+
+                        <div className="conversation-actions">
+                          <button
+                            className="conv-action-btn"
+                            onClick={(e) => handleStartRename(conv, e)}
+                            title="Rename chat"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            className="conv-action-btn delete"
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            title="Delete chat"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="sidebar-footer">
@@ -434,21 +633,18 @@ export default function App() {
                       <div className="message-bubble">
                         <FormattedText text={msg.content} />
 
-                        {/* Verified Grounding Sources & Store Links */}
+                        {/* Verified Grounding Sources & Store Links (Prioritizing Top Retailers: Amazon, Flipkart, Myntra, etc.) */}
                         {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                           <div className="grounding-sources-block">
                             <div className="grounding-sources-header">
-                              <Globe size={13} color="var(--accent-green)" />
-                              <span>Verified Store Links & Sources ({msg.sources.length})</span>
+                              <ShoppingBag size={13} color="var(--accent-green)" />
+                              <span>Verified Retailer Links ({msg.sources.length})</span>
                             </div>
                             <div className="grounding-sources-list">
-                              {msg.sources.slice(0, 8).map((source, sIdx) => {
-                                let label = source.title || 'Store Link';
-                                try {
-                                  const parsed = new URL(source.url);
-                                  const domain = parsed.hostname.replace('www.', '');
-                                  label = source.title ? `${source.title} (${domain})` : domain;
-                                } catch {}
+                              {msg.sources.slice(0, 10).map((source, sIdx) => {
+                                const isTopTier = source.isTopTier;
+                                const displayTitle = source.title || source.originalTitle || 'Store';
+                                const badgeText = source.badge;
 
                                 return (
                                   <a
@@ -456,10 +652,16 @@ export default function App() {
                                     href={source.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="grounding-source-chip"
-                                    title={source.title || source.url}
+                                    className={`grounding-source-chip ${isTopTier ? 'top-tier' : ''}`}
+                                    title={source.originalTitle || source.title || source.url}
                                   >
-                                    <span className="source-chip-text">{label}</span>
+                                    {isTopTier && (
+                                      <CheckCircle2 size={11} color="var(--accent-green)" className="verified-badge-icon" />
+                                    )}
+                                    <span className="source-chip-text">{displayTitle}</span>
+                                    {badgeText && (
+                                      <span className="source-badge-tag">{badgeText}</span>
+                                    )}
                                     <ExternalLink size={10} className="source-chip-icon" />
                                   </a>
                                 );

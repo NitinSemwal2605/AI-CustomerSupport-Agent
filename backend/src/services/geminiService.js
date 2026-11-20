@@ -1,7 +1,8 @@
 /**
  * Gemini Service Module
  * Handles API authentication, request structure formatting,
- * role mapping (system, user, assistant/model), search grounding, and response extraction.
+ * role mapping (system, user, assistant/model), search grounding,
+ * and verified retailer source prioritization.
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -10,18 +11,75 @@ const env = require('../config/env');
 
 /**
  * Default AI Customer Support & Product Research System Persona
+ * Strictly enforces verified sources and prioritizes topmost e-commerce platforms (Amazon, Flipkart, Myntra, etc.)
  */
 const DEFAULT_SUPPORT_INSTRUCTION = `You are an expert AI Customer Support & Product Specialist.
-Your mission is to provide accurate, comprehensive, and verified assistance to customers regarding any product, service, pricing, or troubleshooting inquiry.
+Your mission is to provide accurate, comprehensive, and verified assistance to customers regarding any product, service, pricing, or purchasing guidance.
 
-When the customer asks about any product (e.g. electronics, smartphones, laptops, clothing, appliances, software, or tools):
-1. Product Summary & Specs: Give a structured overview of key specifications, standout features, and ideal use cases.
-2. Pros & Cons: Provide an honest, objective breakdown of benefits and potential trade-offs.
-3. Where to Buy & Direct Store Links: Provide verified, direct product purchase links from multiple major platforms and retailers (such as Official Brand Store, Amazon, Best Buy, Walmart, B&H Photo, Target, etc.).
-   - Format every link as a clear, clickable Markdown link: [Store Name - Product Title](URL).
-   - Include current market price or deals if available.
-4. Alternatives & Recommendations: If relevant, suggest 1 or 2 alternative products that offer similar value or lower price points.
-5. Tone & Quality: Maintain a helpful, polite, professional, and transparent customer service tone. Rely on real-time search grounding results for fresh links and availability.`;
+CRITICAL PRODUCT LINK & RETAILER RULES:
+1. Topmost Verified Retailers First:
+   When listing purchase options and product links, ALWAYS prioritize and place the topmost trusted e-commerce platforms at the very top of your list:
+   - Primary Stores: Amazon (Amazon.in / Amazon.com), Flipkart, Myntra
+   - Official Brand Stores (e.g., Apple, Samsung, Sony, Nike, Adidas, Dell, HP, etc.)
+   - Major Electronics & Department Stores (Croma, Reliance Digital, Tata CLiQ, Best Buy, Walmart, B&H Photo, Target)
+2. Verified Sources Only:
+   Only link to verified retailer stores and authorized dealers. Never link to YouTube, Reddit, unverified forums, social media, or random blogs for purchasing.
+3. Link Formatting:
+   Format every store link clearly as a Markdown hyperlink with the retailer name and product details:
+   - Example: [Amazon - Product Name](URL) - Current Price & In Stock
+   - Example: [Flipkart - Product Name](URL) - Special Offer / Deals
+   - Example: [Myntra - Product Name](URL) - Sizes & Colors
+   - Example: [Official Brand Store](URL) - Official Warranty
+4. Comprehensive Product Advice:
+   Provide a concise overview of key specifications, standout pros and cons, current estimated market price, and target buyer recommendations.
+5. Tone: Helpful, empathetic, objective, and customer-first.`;
+
+/**
+ * Blocked / unverified domains that should not appear as product purchase links
+ */
+const UNVERIFIED_DOMAINS = [
+  'youtube.com',
+  'youtu.be',
+  'reddit.com',
+  'tiktok.com',
+  'facebook.com',
+  'instagram.com',
+  'twitter.com',
+  'x.com',
+  'pinterest.com',
+  'quora.com',
+  'wikipedia.org',
+  'medium.com',
+  'blogspot.com',
+  'wordpress.com',
+  'vimeo.com',
+  'dailymotion.com'
+];
+
+/**
+ * Retailer priority tiers for ranking verified sources
+ * Topmost platforms (Amazon, Flipkart, Myntra) receive highest scores.
+ */
+const RETAILER_PRIORITY_TIERS = [
+  // Topmost Tier 1: Major E-commerce Platforms
+  { pattern: /amazon\.(in|com|co\.uk|de|ca)/i, score: 100, name: 'Amazon', badge: 'Top Retailer' },
+  { pattern: /flipkart\.com/i, score: 98, name: 'Flipkart', badge: 'Top Retailer' },
+  { pattern: /myntra\.com/i, score: 96, name: 'Myntra', badge: 'Top Fashion' },
+
+  // Tier 2: Major Electronics & Consumer Retailers
+  { pattern: /croma\.com/i, score: 92, name: 'Croma', badge: 'Verified Store' },
+  { pattern: /reliancedigital\.in/i, score: 90, name: 'Reliance Digital', badge: 'Verified Store' },
+  { pattern: /tatacliq\.com/i, score: 88, name: 'Tata CLiQ', badge: 'Verified Store' },
+  { pattern: /bestbuy\.com/i, score: 86, name: 'Best Buy', badge: 'Verified Store' },
+  { pattern: /walmart\.com/i, score: 84, name: 'Walmart', badge: 'Verified Store' },
+  { pattern: /bhphotovideo\.com/i, score: 82, name: 'B&H Photo', badge: 'Verified Store' },
+  { pattern: /target\.com/i, score: 80, name: 'Target', badge: 'Verified Store' },
+  { pattern: /ajio\.com/i, score: 78, name: 'Ajio', badge: 'Verified Store' },
+  { pattern: /nykaa\.com/i, score: 76, name: 'Nykaa', badge: 'Verified Store' },
+
+  // Tier 3: Official Brand Stores
+  { pattern: /(apple|sony|samsung|bose|dell|hp|lenovo|asus|acer|nike|adidas|puma|boat-lifestyle|noise|oneplus|xiaomi|mi)\.com/i, score: 74, name: 'Official Brand Store', badge: 'Official Brand' }
+];
 
 /**
  * Validates and retrieves the active Gemini API key.
@@ -57,7 +115,8 @@ function normalizeContents(messages = []) {
 }
 
 /**
- * Deduplicate and format grounding sources
+ * Filter out unverified/video/social domains and rank verified retailers to the top
+ * Top priority: Amazon, Flipkart, Myntra, followed by Croma, Reliance, Official Brand Stores.
  */
 function extractGroundingSources(groundingMetadata) {
   if (!groundingMetadata || !Array.isArray(groundingMetadata.groundingChunks)) {
@@ -65,20 +124,52 @@ function extractGroundingSources(groundingMetadata) {
   }
 
   const seenUrls = new Set();
-  const sources = [];
+  const parsedSources = [];
 
   for (const chunk of groundingMetadata.groundingChunks) {
     const web = chunk.web;
-    if (web && web.uri && !seenUrls.has(web.uri)) {
-      seenUrls.add(web.uri);
-      sources.push({
-        title: web.title || 'Store / Product Link',
-        url: web.uri
-      });
+    if (!web || !web.uri) continue;
+
+    const rawTitle = (web.title || '').trim();
+    const rawUri = web.uri.trim();
+
+    // Check against unverified/blocked list
+    const isBlocked = UNVERIFIED_DOMAINS.some(
+      (blocked) => rawTitle.toLowerCase().includes(blocked) || rawUri.toLowerCase().includes(blocked)
+    );
+    if (isBlocked) continue;
+
+    if (seenUrls.has(rawUri)) continue;
+    seenUrls.add(rawUri);
+
+    // Score and identify retailer
+    let score = 20; // default score for generic product pages
+    let displayName = rawTitle || 'Product Link';
+    let badge = 'Store Link';
+    let isTopTier = false;
+
+    for (const tier of RETAILER_PRIORITY_TIERS) {
+      if (tier.pattern.test(rawTitle) || tier.pattern.test(rawUri)) {
+        score = tier.score;
+        displayName = tier.name;
+        badge = tier.badge;
+        isTopTier = true;
+        break;
+      }
     }
+
+    parsedSources.push({
+      title: displayName,
+      originalTitle: rawTitle,
+      url: rawUri,
+      score,
+      badge,
+      isTopTier
+    });
   }
 
-  return sources;
+  // Sort descending: Amazon (100) -> Flipkart (98) -> Myntra (96) -> Croma -> Best Buy -> Official Stores -> Others
+  return parsedSources.sort((a, b) => b.score - a.score);
 }
 
 /**
@@ -146,7 +237,7 @@ async function sendGeminiChat({
       const finishReason = firstCandidate.finishReason || 'STOP';
       const safetyRatings = firstCandidate.safetyRatings || [];
 
-      // Extract search grounding metadata
+      // Extract verified & prioritized search grounding sources
       const groundingMetadata = firstCandidate.groundingMetadata || null;
       const webSearchQueries = groundingMetadata?.webSearchQueries || [];
       const sources = extractGroundingSources(groundingMetadata);
@@ -161,12 +252,12 @@ async function sendGeminiChat({
       const candidatesTokens = usageMetadata.candidatesTokenCount || 0;
       const totalTokens = usageMetadata.totalTokenCount || (promptTokens + candidatesTokens);
 
-      const costDetails = calculateCost(model, promptTokens, candidatesTokens);
+      const costDetails = calculateCost(modelOptions.model, promptTokens, candidatesTokens);
 
       const rawResponsePayload = {
         candidates,
         usageMetadata,
-        modelVersion: response.modelVersion || model,
+        modelVersion: response.modelVersion || modelOptions.model,
         groundingMetadata
       };
 
@@ -174,7 +265,7 @@ async function sendGeminiChat({
         success: true,
         text: responseText,
         role: 'model',
-        modelUsed: model,
+        modelUsed: modelOptions.model,
         latencyMs: durationMs,
         finishReason,
         safetyRatings,
@@ -192,7 +283,7 @@ async function sendGeminiChat({
           rolesExplainer: {
             system: {
               role: 'system',
-              purpose: 'Defines customer support persona, product guidelines, and web search grounding.',
+              purpose: 'Defines customer support persona, verified retailer prioritization, and web search grounding.',
               appliedAs: 'systemInstruction parameter in model initialization.'
             },
             user: {
@@ -222,7 +313,7 @@ async function sendGeminiChat({
       const isHighDemand = errorMsg.includes('503') || errorMsg.includes('high demand') || errorMsg.includes('no longer available') || errorMsg.includes('404');
       if (isHighDemand && attempt <= 2) {
         const fallback = modelOptions.model === 'gemini-3.5-flash-lite' ? 'gemini-flash-latest' : 'gemini-3.5-flash-lite';
-        console.warn(`[GeminiService] Model ${modelOptions.model} returned error. Seamlessly retrying with fallback: ${fallback}`);
+        console.warn(`[GeminiService] Model ${modelOptions.model} returned error. Retrying with fallback: ${fallback}`);
         modelOptions.model = fallback;
         await new Promise((r) => setTimeout(r, 1200));
         continue;

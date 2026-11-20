@@ -144,7 +144,16 @@ Open your browser to: **`http://localhost:5173`**
   - `POST /api/auth/login`: Authenticate credentials against PostgreSQL and return JWT.
   - `GET /api/auth/me`: Validate JWT token and retrieve current user context.
 
-### 3. Request & Response Telemetry
+### 3. Conversation Persistence & Chat Management
+- **Relational History**: Automatically persists user conversations and assistant messages with grounding sources and telemetry to PostgreSQL.
+- **Chat Management**:
+  - `GET /api/conversations`: List all conversations for the authenticated user, ordered by latest activity.
+  - `GET /api/conversations/:id`: Retrieve complete chat history for a specific conversation thread.
+  - `PATCH /api/conversations/:id`: Rename conversation title.
+  - `DELETE /api/conversations/:id`: Delete conversation and cascaded messages.
+- **Interactive Sidebar UI**: Allows users to switch between past chats, trigger inline renames with save/cancel controls, and delete conversations.
+
+### 4. Request & Response Telemetry
 - Every exchange captures complete round-trip JSON payloads:
   - System instructions
   - Generation configuration (`temperature`, `maxOutputTokens`)
@@ -154,7 +163,7 @@ Open your browser to: **`http://localhost:5173`**
 - Exact USD cost calculated per interaction based on official Gemini pricing tiers:
   $$\text{Total Cost} = \left(\frac{\text{PromptTokens}}{1,000,000} \times \text{InputRate}\right) + \left(\frac{\text{CandidateTokens}}{1,000,000} \times \text{OutputRate}\right)$$
 
-### 4. Interactive Telemetry Inspector
+### 5. Interactive Telemetry Inspector
 - Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and cost breakdowns directly inside the UI.
 
 ---

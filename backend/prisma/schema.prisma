@@ -11,12 +11,46 @@ generator client {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
 
   @@map("users")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String    @default("New Chat")
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+model Message {
+  id              String       @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            String       // 'user' | 'assistant'
+  content         String       @db.Text
+  modelUsed       String?
+  latencyMs       Int?
+  tokensPrompt    Int?
+  tokensCandidate Int?
+  tokensTotal     Int?
+  costUsd         Float?
+  sources         Json?        // Storing grounding sources / links
+  metadata        Json?        // Telemetry / Inspector JSON
+  createdAt       DateTime     @default(now())
+
+  @@index([conversationId])
+  @@map("messages")
 }
