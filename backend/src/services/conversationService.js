@@ -69,19 +69,6 @@ async function getConversationWithMessages(userId, conversationId) {
       content: m.content,
       modelUsed: m.modelUsed,
       latencyMs: m.latencyMs,
-      usage: m.tokensTotal
-        ? {
-            promptTokens: m.tokensPrompt || 0,
-            candidatesTokens: m.tokensCandidate || 0,
-            totalTokens: m.tokensTotal || 0,
-            cost: {
-              totalCostUSD: m.costUsd || 0,
-              formatted: {
-                totalCostString: `$${(m.costUsd || 0).toFixed(7)}`
-              }
-            }
-          }
-        : null,
       sources: m.sources || [],
       inspector: m.metadata || null,
       timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -221,10 +208,6 @@ async function saveChatTurn({
         content: assistantResponse.text || '',
         modelUsed: assistantResponse.modelUsed || null,
         latencyMs: assistantResponse.latencyMs || null,
-        tokensPrompt: assistantResponse.usage?.promptTokens || null,
-        tokensCandidate: assistantResponse.usage?.candidatesTokens || null,
-        tokensTotal: assistantResponse.usage?.totalTokens || null,
-        costUsd: assistantResponse.usage?.cost?.totalCostUSD || null,
         sources: assistantResponse.sources || null,
         metadata: assistantResponse.inspector || null
       }

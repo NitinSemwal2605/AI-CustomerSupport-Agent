@@ -24,7 +24,6 @@
 
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { calculateCost } = require('./src/config/pricing');
 
 async function main() {
   console.log('='.repeat(70));
@@ -136,33 +135,6 @@ async function main() {
   console.log(`- Finish Reason: ${candidate?.finishReason} (e.g. STOP = completed naturally)`);
   console.log(`- Role: ${candidate?.content?.role} (Gemini uses "model")`);
   console.log(`- Total Parts: ${candidate?.content?.parts?.length || 1}`);
-
-  console.log('\n' + '='.repeat(70));
-  console.log(' STEP 5: TOKEN USAGE & API COSTS');
-  console.log('='.repeat(70));
-
-  const usage = response.usageMetadata || {};
-  const promptTokens = usage.promptTokenCount || 0;
-  const candidateTokens = usage.candidatesTokenCount || 0;
-  const totalTokens = usage.totalTokenCount || (promptTokens + candidateTokens);
-
-  console.log('What are Tokens?');
-  console.log('Tokens are pieces of words (roughly 1 token ≈ 4 characters or 0.75 words).');
-  console.log('\nToken Counts for this Request:');
-  console.log(`- Input/Prompt Tokens (User + System): ${promptTokens}`);
-  console.log(`- Output/Candidate Tokens (Model):     ${candidateTokens}`);
-  console.log(`- Total Tokens:                        ${totalTokens}`);
-
-  // Calculate costs using pricing tier
-  const cost = calculateCost(activeModelName, promptTokens, candidateTokens);
-
-  console.log('\nCost Breakdown (Pay-as-you-go pricing):');
-  console.log(`- Pricing Tier:         ${cost.rates.inputPerMillion}/1M input, ${cost.rates.outputPerMillion}/1M output`);
-  console.log(`- Input Prompt Cost:    ${cost.formatted.inputCostString}`);
-  console.log(`- Output Response Cost: ${cost.formatted.outputCostString}`);
-  console.log(`- Total Request Cost:   ${cost.formatted.totalCostString} USD`);
-  console.log(`- Estimated cost for 1,000 such requests: ${cost.formatted.costPerThousandTurns} USD`);
-  console.log('\nTip: Google AI Studio offers a generous FREE tier for testing!');
 
   console.log('\n' + '='.repeat(70));
   console.log('🎉 First API request completed successfully!');

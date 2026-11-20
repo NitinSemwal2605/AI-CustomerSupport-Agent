@@ -6,7 +6,6 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
-  Coins,
   FileJson,
   LogOut,
   Sun,
@@ -66,14 +65,6 @@ export default function App() {
 
   // Server health state
   const [serverStatus, setServerStatus] = useState(null);
-
-  // Session stats
-  const [sessionStats, setSessionStats] = useState({
-    promptTokens: 0,
-    candidateTokens: 0,
-    totalTokens: 0,
-    totalCostUSD: 0
-  });
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -337,15 +328,6 @@ export default function App() {
         if (data.conversationId) {
           setCurrentConversationId(data.conversationId);
           fetchConversations();
-        }
-
-        if (data.usage) {
-          setSessionStats((prev) => ({
-            promptTokens: prev.promptTokens + (data.usage.promptTokens || 0),
-            candidateTokens: prev.candidateTokens + (data.usage.candidatesTokens || 0),
-            totalTokens: prev.totalTokens + (data.usage.totalTokens || 0),
-            totalCostUSD: prev.totalCostUSD + (data.usage.cost?.totalCostUSD || 0)
-          }));
         }
       }
     } catch (err) {
@@ -672,7 +654,7 @@ export default function App() {
                       </div>
 
                       {/* Telemetry metadata for Model responses */}
-                      {msg.role === 'assistant' && !msg.isError && msg.usage && (
+                      {msg.role === 'assistant' && !msg.isError && (
                         <div className="message-telemetry">
                           <div
                             className="telemetry-pill"
@@ -680,27 +662,14 @@ export default function App() {
                             title="Click to view raw JSON request & response"
                           >
                             <FileJson size={12} color="#2563eb" />
-                            <span>
-                              Tokens: <strong>{msg.usage.totalTokens}</strong> ({msg.usage.promptTokens} in / {msg.usage.candidatesTokens} out)
-                            </span>
-                          </div>
-
-                          <div
-                            className="telemetry-pill"
-                            onClick={() => openInspector(msg)}
-                            title="Calculated cost for this turn"
-                          >
-                            <Coins size={12} color="#16a34a" />
-                            <span>
-                              Cost: <strong>{msg.usage.cost?.formatted?.totalCostString}</strong>
-                            </span>
+                            <span>Inspect Payload</span>
                           </div>
 
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', padding: '1px 6px', borderRadius: '4px', fontWeight: '500' }}>
                               {msg.modelUsed || selectedModel}
                             </span>
-                            <span>• {msg.latencyMs}ms • {msg.finishReason}</span>
+                            {msg.latencyMs ? <span>• {msg.latencyMs}ms</span> : null}
                           </span>
                         </div>
                       )}
@@ -774,7 +743,7 @@ export default function App() {
                 </div>
 
                 <div className="input-footer">
-                  Gemini may display inaccurate info. Token & cost data calculated from standard rates.
+                  Gemini may display inaccurate info.
                 </div>
               </div>
             </div>

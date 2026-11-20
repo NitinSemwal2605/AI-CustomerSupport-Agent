@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, FileJson, Cpu, DollarSign, Layers } from 'lucide-react';
+import { X, Copy, Check, FileJson, Cpu, Layers } from 'lucide-react';
 
 export default function InspectorModal({ isOpen, onClose, telemetryData }) {
   const [activeTab, setActiveTab] = useState('raw-request');
@@ -10,7 +10,6 @@ export default function InspectorModal({ isOpen, onClose, telemetryData }) {
   const { inspector, usage, latencyMs, finishReason, modelUsed } = telemetryData;
   const rawRequest = inspector?.rawRequest || {};
   const rawResponse = inspector?.rawResponse || {};
-  const cost = usage?.cost || {};
 
   const handleCopyJson = (data) => {
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
@@ -49,12 +48,6 @@ export default function InspectorModal({ isOpen, onClose, telemetryData }) {
             onClick={() => setActiveTab('roles')}
           >
             Roles Mapping
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'tokens-cost' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tokens-cost')}
-          >
-            Tokens & Cost Math
           </button>
         </div>
 
@@ -126,46 +119,6 @@ export default function InspectorModal({ isOpen, onClose, telemetryData }) {
                   While OpenAI calls this "assistant", Gemini API designates this role as <strong>"model"</strong>.
                   Previous AI responses in the conversation history are sent back with <code>role: "model"</code> to maintain context.
                 </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'tokens-cost' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Prompt Tokens</span>
-                  <div style={{ fontSize: '20px', fontWeight: '700', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                    {usage?.promptTokens || 0}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>User + System</span>
-                </div>
-
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>Candidate Tokens</span>
-                  <div style={{ fontSize: '20px', fontWeight: '700', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
-                    {usage?.candidatesTokens || 0}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>Model Output</span>
-                </div>
-
-                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '12px' }}>
-                  <span style={{ fontSize: '11px', color: '#065f46', textTransform: 'uppercase', fontWeight: '600' }}>Calculated Cost</span>
-                  <div style={{ fontSize: '20px', fontWeight: '700', marginTop: '4px', color: '#047857', fontFamily: 'var(--font-mono)' }}>
-                    {cost?.formatted?.totalCostString || '$0.0000000'}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#059669' }}>USD</span>
-                </div>
-              </div>
-
-              <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px' }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>Pricing Formula Applied:</h4>
-                <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', lineHeight: '1.7', color: '#334155' }}>
-                  • Input Rate: {cost?.rates?.inputPerMillion || '$0.075'} per 1,000,000 tokens<br />
-                  • Output Rate: {cost?.rates?.outputPerMillion || '$0.30'} per 1,000,000 tokens<br />
-                  • Formula: <code>({usage?.promptTokens || 0} / 1M × Rate) + ({usage?.candidatesTokens || 0} / 1M × Rate)</code><br />
-                  • Roundtrip Latency: <strong>{latencyMs || 0}ms</strong> | Finish Reason: <strong>{finishReason || 'STOP'}</strong>
-                </div>
               </div>
             </div>
           )}

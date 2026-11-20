@@ -36,10 +36,9 @@ This repository serves as a practical, production-oriented project for implement
 AI-CustomerSupport-Agent/
 ├── backend/
 │   ├── src/
-│   │   ├── config/           # Database, environment variables & pricing
+│   │   ├── config/           # Database & environment variables
 │   │   │   ├── env.js
-│   │   │   ├── db.js
-│   │   │   └── pricing.js
+│   │   │   └── db.js
 │   │   ├── controllers/      # HTTP request & response handlers
 │   │   │   ├── authController.js
 │   │   │   └── chatController.js
@@ -160,11 +159,10 @@ Open your browser to: **`http://localhost:5173`**
   - Full conversation history (`contents` array with `user` and `model` roles)
   - Finish reason (`STOP`, `MAX_TOKENS`, etc.)
   - Token counts (`promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`)
-- Exact USD cost calculated per interaction based on official Gemini pricing tiers:
-  $$\text{Total Cost} = \left(\frac{\text{PromptTokens}}{1,000,000} \times \text{InputRate}\right) + \left(\frac{\text{CandidateTokens}}{1,000,000} \times \text{OutputRate}\right)$$
+  - Roundtrip latency in milliseconds
 
 ### 5. Interactive Telemetry Inspector
-- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and cost breakdowns directly inside the UI.
+- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and token usage directly inside the UI.
 
 ---
 

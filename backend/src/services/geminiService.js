@@ -6,7 +6,6 @@
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { calculateCost } = require('../config/pricing');
 const env = require('../config/env');
 
 /**
@@ -242,21 +241,8 @@ async function sendGeminiChat({
       const webSearchQueries = groundingMetadata?.webSearchQueries || [];
       const sources = extractGroundingSources(groundingMetadata);
 
-      const usageMetadata = response.usageMetadata || {
-        promptTokenCount: 0,
-        candidatesTokenCount: 0,
-        totalTokenCount: 0
-      };
-
-      const promptTokens = usageMetadata.promptTokenCount || 0;
-      const candidatesTokens = usageMetadata.candidatesTokenCount || 0;
-      const totalTokens = usageMetadata.totalTokenCount || (promptTokens + candidatesTokens);
-
-      const costDetails = calculateCost(modelOptions.model, promptTokens, candidatesTokens);
-
       const rawResponsePayload = {
         candidates,
-        usageMetadata,
         modelVersion: response.modelVersion || modelOptions.model,
         groundingMetadata
       };
@@ -271,12 +257,6 @@ async function sendGeminiChat({
         safetyRatings,
         sources,
         webSearchQueries,
-        usage: {
-          promptTokens,
-          candidatesTokens,
-          totalTokens,
-          cost: costDetails
-        },
         inspector: {
           rawRequest: rawRequestPayload,
           rawResponse: rawResponsePayload,
@@ -337,23 +317,10 @@ async function sendGeminiChat({
   };
 }
 
-/**
- * Count tokens for a given prompt
- */
-async function countPromptTokens({ apiKey: customKey, model = 'gemini-2.5-flash', text = '' }) {
-  const apiKey = resolveApiKey(customKey);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const generativeModel = genAI.getGenerativeModel({ model });
-
-  const countResult = await generativeModel.countTokens(text);
-  return countResult.totalTokens;
-}
-
 module.exports = {
   resolveApiKey,
   normalizeContents,
   extractGroundingSources,
   sendGeminiChat,
-  countPromptTokens,
   DEFAULT_SUPPORT_INSTRUCTION
 };

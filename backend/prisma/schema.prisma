@@ -43,10 +43,6 @@ model Message {
   content         String       @db.Text
   modelUsed       String?
   latencyMs       Int?
-  tokensPrompt    Int?
-  tokensCandidate Int?
-  tokensTotal     Int?
-  costUsd         Float?
   sources         Json?        // Storing grounding sources / links
   metadata        Json?        // Telemetry / Inspector JSON
   createdAt       DateTime     @default(now())

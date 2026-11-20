@@ -4,8 +4,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { PRICING_TIERS } = require('../config/pricing');
-const { sendGeminiChat, countPromptTokens } = require('../services/geminiService');
+const { sendGeminiChat } = require('../services/geminiService');
 const { saveChatTurn } = require('../services/conversationService');
 const prisma = require('../config/db');
 const env = require('../config/env');
@@ -137,63 +136,25 @@ async function handleTestKey(req, res, next) {
   }
 }
 
-async function handleCountTokens(req, res, next) {
-  try {
-    const keyFromHeader = req.headers['x-gemini-api-key'];
-    const { apiKey: keyFromBody, model = 'gemini-2.5-flash', text = '' } = req.body;
-    const activeKey = keyFromBody || keyFromHeader || env.GEMINI_API_KEY;
-
-    if (!activeKey) {
-      const approxTokens = Math.ceil(text.length / 4);
-      return res.json({
-        totalTokens: approxTokens,
-        isApproximate: true,
-        note: 'Approximate count (4 chars/token). Provide API key for exact SDK count.'
-      });
-    }
-
-    try {
-      const totalTokens = await countPromptTokens({
-        apiKey: activeKey,
-        model,
-        text
-      });
-      return res.json({ totalTokens, isApproximate: false });
-    } catch (err) {
-      const approxTokens = Math.ceil(text.length / 4);
-      return res.json({
-        totalTokens: approxTokens,
-        isApproximate: true,
-        warning: err.message
-      });
-    }
-  } catch (err) {
-    next(err);
-  }
-}
-
 function handleGetModels(req, res) {
   const models = [
     {
       id: 'gemini-2.5-flash',
       name: 'Gemini 2.5 Flash',
       tag: 'Recommended (Search Grounding Enabled)',
-      description: 'Optimized for high-speed customer support and live product search grounding.',
-      pricing: PRICING_TIERS['gemini-2.5-flash']
+      description: 'Optimized for high-speed customer support and live product search grounding.'
     },
     {
       id: 'gemini-3.5-flash-lite',
       name: 'Gemini 3.5 Flash Lite',
       tag: 'Ultra-Fast & Lightweight',
-      description: 'Extremely fast next-gen model for instant responses with minimum latency.',
-      pricing: PRICING_TIERS['gemini-3.5-flash-lite']
+      description: 'Extremely fast next-gen model for instant responses with minimum latency.'
     },
     {
       id: 'gemini-flash-latest',
       name: 'Gemini Flash Latest',
       tag: 'Official Google AI Studio',
-      description: 'Standard production Gemini Flash model with high reliability.',
-      pricing: PRICING_TIERS['gemini-flash-latest']
+      description: 'Standard production Gemini Flash model with high reliability.'
     }
   ];
 
@@ -217,7 +178,6 @@ function handleGetHealth(req, res) {
 module.exports = {
   handleChat,
   handleTestKey,
-  handleCountTokens,
   handleGetModels,
   handleGetHealth
 };
