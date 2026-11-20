@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { X, Key, Sliders, CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { X, Key, CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 
 export default function SettingsModal({
   isOpen,
   onClose,
   apiKey,
   setApiKey,
-  serverStatus,
-  temperature,
-  setTemperature,
-  maxTokens,
-  setMaxTokens
+  serverStatus
 }) {
   const [testStatus, setTestStatus] = useState(null); // 'testing' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
@@ -156,46 +152,6 @@ export default function SettingsModal({
                 <AlertCircle size={14} /> {testMessage}
               </span>
             )}
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '16px 0' }} />
-
-          {/* Generation Config */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>
-            <Sliders size={16} />
-            <span>Generation Parameters (generationConfig)</span>
-          </div>
-
-          <div className="form-group">
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <label className="form-label">Temperature: {temperature}</label>
-              <span style={{ fontSize: '11px', color: '#6b7280' }}>0 = Deterministic, 1 = Creative</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              style={{ width: '100%', accentColor: '#10a37f' }}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <label className="form-label">Max Output Tokens: {maxTokens}</label>
-              <span style={{ fontSize: '11px', color: '#6b7280' }}>Token limit per response</span>
-            </div>
-            <input
-              type="range"
-              min="128"
-              max="4096"
-              step="128"
-              value={maxTokens}
-              onChange={(e) => setMaxTokens(parseInt(e.target.value))}
-              style={{ width: '100%', accentColor: '#10a37f' }}
-            />
           </div>
         </div>
       </div>

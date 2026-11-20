@@ -36,7 +36,6 @@ async function handleChat(req, res, next) {
       model = 'gemini-2.5-flash',
       systemInstruction = '',
       messages = [],
-      config = {},
       conversationId
     } = req.body;
 
@@ -61,8 +60,7 @@ async function handleChat(req, res, next) {
       apiKey: activeKey,
       model,
       systemInstruction,
-      messages,
-      config
+      messages
     });
 
     if (!chatResponse.success) {
@@ -115,8 +113,7 @@ async function handleTestKey(req, res, next) {
       apiKey: targetKey,
       model: 'gemini-2.5-flash',
       systemInstruction: 'Respond only with: OK',
-      messages: [{ role: 'user', content: 'Ping' }],
-      config: { maxOutputTokens: 50, temperature: 0.1 }
+      messages: [{ role: 'user', content: 'Ping' }]
     });
 
     if (testResult.success) {

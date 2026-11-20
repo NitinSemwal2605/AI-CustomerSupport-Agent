@@ -154,15 +154,13 @@ Open your browser to: **`http://localhost:5173`**
 
 ### 4. Request & Response Telemetry
 - Every exchange captures complete round-trip JSON payloads:
-  - System instructions
-  - Generation configuration (`temperature`, `maxOutputTokens`)
+  - System instructions (`systemInstruction`)
   - Full conversation history (`contents` array with `user` and `model` roles)
-  - Finish reason (`STOP`, `MAX_TOKENS`, etc.)
-  - Token counts (`promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`)
+  - Finish reason (`STOP`, etc.)
   - Roundtrip latency in milliseconds
 
 ### 5. Interactive Telemetry Inspector
-- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and token usage directly inside the UI.
+- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and role mappings directly inside the UI.
 
 ---
 

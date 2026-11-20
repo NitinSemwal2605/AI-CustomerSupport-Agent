@@ -55,8 +55,6 @@ export default function App() {
   // Settings & Model Selection (Model selection is housed inside the search bar)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_user_api_key') || '');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(2048);
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -287,11 +285,7 @@ export default function App() {
           apiKey: apiKey.trim() || undefined,
           model: selectedModel,
           messages: apiHistory,
-          conversationId: currentConversationId,
-          config: {
-            temperature,
-            maxOutputTokens: maxTokens
-          }
+          conversationId: currentConversationId
         })
       });
 
@@ -765,10 +759,6 @@ export default function App() {
         apiKey={apiKey}
         setApiKey={setApiKey}
         serverStatus={serverStatus}
-        temperature={temperature}
-        setTemperature={setTemperature}
-        maxTokens={maxTokens}
-        setMaxTokens={setMaxTokens}
       />
     </div>
   );

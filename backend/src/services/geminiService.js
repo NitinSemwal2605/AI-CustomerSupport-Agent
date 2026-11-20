@@ -178,8 +178,7 @@ async function sendGeminiChat({
   apiKey: customKey,
   model = 'gemini-2.5-flash',
   systemInstruction = '',
-  messages = [],
-  config = {}
+  messages = []
 }) {
   const apiKey = resolveApiKey(customKey);
   const genAI = new GoogleGenerativeAI(apiKey);
@@ -188,18 +187,11 @@ async function sendGeminiChat({
     ? systemInstruction.trim()
     : DEFAULT_SUPPORT_INSTRUCTION;
 
-  const generationConfig = {
-    temperature: typeof config.temperature === 'number' ? config.temperature : 0.7,
-    topP: typeof config.topP === 'number' ? config.topP : 0.95,
-    maxOutputTokens: config.maxOutputTokens || (model.includes('pro') ? 4096 : 2048),
-  };
-
   const startTime = Date.now();
   const contents = normalizeContents(messages);
 
   const modelOptions = {
     model,
-    generationConfig,
     systemInstruction: {
       role: 'system',
       parts: [{ text: activeSystemInstruction }]
@@ -210,7 +202,6 @@ async function sendGeminiChat({
   const rawRequestPayload = {
     model: modelOptions.model,
     systemInstruction: modelOptions.systemInstruction,
-    generationConfig,
     contents,
     tools: modelOptions.tools
   };

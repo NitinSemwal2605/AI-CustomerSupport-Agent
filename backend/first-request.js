@@ -89,8 +89,7 @@ async function main() {
   try {
     const model = genAI.getGenerativeModel({
       model: activeModelName,
-      systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+      systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] }
     });
 
     const result = await model.generateContent({
@@ -103,8 +102,7 @@ async function main() {
       activeModelName = 'gemini-2.5-flash';
       const fallbackModel = genAI.getGenerativeModel({
         model: activeModelName,
-        systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+        systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] }
       });
       const result = await fallbackModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
