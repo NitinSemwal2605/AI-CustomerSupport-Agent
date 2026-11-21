@@ -4,7 +4,8 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { sendGeminiChat } = require('../services/geminiService');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { streamGeminiChat } = require('../services/geminiService');
 const { saveChatTurn } = require('../services/conversationService');
 const env = require('../config/env');
 
@@ -37,9 +38,9 @@ async function maybeSaveTurn(userId, conversationId, messages, response) {
 }
 
 /**
- * Standard Chat endpoint
+ * Streaming Chat endpoint (Server-Sent Events)
  */
-async function handleChat(req, res, next) {
+async function handleChatStream(req, res, next) {
   try {
     const { apiKey, model = 'gemini-2.5-flash', systemInstruction, messages = [], conversationId } = req.body;
     const activeKey = apiKey || req.headers['x-gemini-api-key'] || env.GEMINI_API_KEY;
@@ -55,25 +56,47 @@ async function handleChat(req, res, next) {
       return res.status(400).json({ success: false, error: 'Messages array cannot be empty.' });
     }
 
-    const chatResponse = await sendGeminiChat({
+    // Set Server-Sent Events headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Stream from Gemini API
+    const result = await streamGeminiChat({
       apiKey: activeKey,
       model,
       systemInstruction,
-      messages
+      messages,
+      onChunk: (text) => {
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      }
     });
 
-    if (!chatResponse.success) {
-      return res.status(500).json(chatResponse);
-    }
+    // Save full conversation turn to PostgreSQL
+    const finalConversationId = await maybeSaveTurn(
+      getUserId(req),
+      conversationId,
+      messages,
+      { text: result.fullText, sources: result.sources }
+    );
 
-    const finalConversationId = await maybeSaveTurn(getUserId(req), conversationId, messages, chatResponse);
-
-    return res.json({
-      ...chatResponse,
+    // Send final completion event with sources and conversationId
+    res.write(`data: ${JSON.stringify({
+      done: true,
+      sources: result.sources,
       conversationId: finalConversationId
-    });
+    })}\n\n`);
+
+    res.write('data: [DONE]\n\n');
+    res.end();
   } catch (err) {
-    next(err);
+    console.error('Streaming error:', err.message);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
   }
 }
 
@@ -87,19 +110,13 @@ async function handleTestKey(req, res, next) {
       return res.status(400).json({ success: false, message: 'No API key provided.' });
     }
 
-    const result = await sendGeminiChat({
-      apiKey: targetKey,
-      model: 'gemini-2.5-flash',
-      systemInstruction: 'Respond only with: OK',
-      messages: [{ role: 'user', content: 'Ping' }]
-    });
+    const genAI = new GoogleGenerativeAI(targetKey.trim());
+    const testModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    await testModel.generateContent('ping');
 
-    if (result.success) {
-      return res.json({ success: true, message: 'API key is valid!' });
-    }
-    return res.status(401).json({ success: false, message: result.error || 'Verification failed.' });
+    return res.json({ success: true, message: 'API key is valid!' });
   } catch (err) {
-    next(err);
+    return res.status(401).json({ success: false, message: err.message || 'Verification failed.' });
   }
 }
 
@@ -125,7 +142,7 @@ function handleGetHealth(req, res) {
 }
 
 module.exports = {
-  handleChat,
+  handleChatStream,
   handleTestKey,
   handleGetModels,
   handleGetHealth

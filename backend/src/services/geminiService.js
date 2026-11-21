@@ -31,9 +31,6 @@ CRITICAL GUIDELINES FOR INDIAN SHOPPERS:
    - Highlight value-for-money, after-sales service network in India, and warranty coverage where applicable.
 4. Tone & Style:
    - Friendly, objective, shopper-first, and concise with clean bullet points.`;
-
-const DEFAULT_SUPPORT_INSTRUCTION = DEFAULT_SHOPPING_INSTRUCTION;
-
 /**
  * Priority Retailer Tiers for Indian Shoppers
  */
@@ -161,76 +158,83 @@ function extractGroundingSources(groundingMetadata) {
 }
 
 /**
- * Send chat completion request to Gemini API
- * 
+ * Stream chat completion chunks from Gemini API
+ *
  * Flow:
  * 1. Validate & resolve API key
  * 2. Format conversation history using `manageContext`
- * 3. Initialize Gemini model with System Instructions & Google Search tool (Grounding)
- * 4. Generate content (with automatic fallback to plain LLM if search tool fails)
- * 5. Extract response text, latency, and grounded source links (Amazon, Flipkart, etc.)
+ * 3. Initialize Gemini model with Google Search grounding
+ * 4. Call `model.generateContentStream({ contents })`
+ * 5. Stream chunks in real-time via `onChunk(text)` callback
+ * 6. Extract grounding sources upon stream completion
  */
-async function sendGeminiChat({
+async function streamGeminiChat({
   apiKey: customKey,
   model = 'gemini-2.5-flash',
   systemInstruction = '',
-  messages = []
+  messages = [],
+  onChunk
 }) {
-  // Step 1: Validate and retrieve the Gemini API key (from user settings or backend/.env)
   const apiKey = resolveApiKey(customKey);
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Step 2: Use custom system instructions if provided, otherwise default to Indian Shopping Assistant prompt
   const activeInstruction = systemInstruction?.trim() || DEFAULT_SHOPPING_INSTRUCTION;
-
-  // Step 3: Clean and format chat history to comply with Gemini's rules (alternating user/model roles)
   const contents = manageContext(messages);
 
   if (contents.length === 0) {
-    return { success: false, error: 'No valid message content to send.' };
+    throw new Error('No valid message content to send.');
   }
 
-  // Step 4: Configure the Gemini Model with Google Search Grounding.
-  // - `systemInstruction`: Guides the AI to act as a shopping assistant for Indian shoppers and quote in ₹ INR.
-  // - `tools: [{ googleSearch: {} }]`: Enables real-time Google Search grounding so Gemini can fetch
-  //   live Indian product prices, recent deals, and official store URLs (Amazon.in, Flipkart, boAt, etc.).
   const generativeModel = genAI.getGenerativeModel({
     model,
     systemInstruction: {
       role: 'system',
       parts: [{ text: activeInstruction }]
     },
-    tools: [{ googleSearch: {}}] // Real-time web search grounding for live product links
+    tools: [{ googleSearch: {} }] // Real-time web search grounding for live product links
   });
 
-  let response = null;
+  let streamResult = null;
 
   try {
-    // Attempt 1: Call Gemini with Google Search Grounding enabled.
-    // Gemini will query Google Search if it needs live product info, prices, or store links.
-    const result = await generativeModel.generateContent({ contents });
-    response = await result.response;
+    // Attempt 1: Stream with Google Search grounding enabled
+    streamResult = await generativeModel.generateContentStream({ contents });
   } catch (err) {
-    // Attempt 2 (Fallback Mechanism):
-    // If the search grounding tool fails (e.g. rate limit, tool timeout),
-    // retry with standard generation without tools so the user still gets an answer.
-    console.warn('Search grounding tool failed or unavailable; falling back to standard generation:', err.message);
+    // Fallback: Stream without search tools if grounding tool encounters an error
+    console.warn('Search grounding stream failed; falling back to standard stream:', err.message);
     const fallbackModel = genAI.getGenerativeModel({
       model,
       systemInstruction: { role: 'system', parts: [{ text: activeInstruction }] }
     });
-    const result = await fallbackModel.generateContent({ contents });
-    response = await result.response;
+    streamResult = await fallbackModel.generateContentStream({ contents });
   }
 
-  // Extract live product links found via Google Search grounding
-  const groundingMetadata = response.candidates?.[0]?.groundingMetadata || null;
+  let fullText = '';
 
-  // Step 5: Return clean, essential response (text and ranked store sources)
+  // Stream each chunk token-by-token
+  for await (const chunk of streamResult.stream) {
+    const chunkText = chunk.text ? chunk.text() : '';
+    if (chunkText) {
+      fullText += chunkText;
+      if (typeof onChunk === 'function') {
+        onChunk(chunkText);
+      }
+    }
+  }
+
+  // Once stream completes, extract live store sources from grounding metadata
+  let sources = [];
+  try {
+    const finalResponse = await streamResult.response;
+    const groundingMetadata = finalResponse.candidates?.[0]?.groundingMetadata || null;
+    sources = extractGroundingSources(groundingMetadata);
+  } catch {
+    sources = [];
+  }
+
   return {
-    success: true,
-    text: response.text ? response.text() : '',
-    sources: extractGroundingSources(groundingMetadata)
+    fullText,
+    sources
   };
 }
 
@@ -239,7 +243,6 @@ module.exports = {
   manageContext,
   normalizeContents,
   extractGroundingSources,
-  sendGeminiChat,
-  DEFAULT_SHOPPING_INSTRUCTION,
-  DEFAULT_SUPPORT_INSTRUCTION
+  streamGeminiChat,
+  DEFAULT_SHOPPING_INSTRUCTION
 };

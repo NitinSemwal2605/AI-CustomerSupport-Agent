@@ -111,7 +111,7 @@ This single command:
 ## API Endpoints
 
 ### Shopping Chat
-- `POST /api/chat`: Chat completion with Gemini and search grounding.
+- `POST /api/chat/stream`: Real-time streaming chat completion via Server-Sent Events (SSE) with live store links.
 - `GET /api/models`: List available Gemini models with capability tags.
 - `POST /api/test-key`: Test and validate a Gemini API key.
 

@@ -4,7 +4,7 @@
 
 const express = require('express');
 const {
-  handleChat,
+  handleChatStream,
   handleTestKey,
   handleGetModels,
   handleGetHealth
@@ -15,6 +15,6 @@ const router = express.Router();
 router.get('/health', handleGetHealth);
 router.get('/models', handleGetModels);
 router.post('/test-key', handleTestKey);
-router.post('/chat', handleChat);
+router.post('/chat/stream', handleChatStream);
 
 module.exports = router;

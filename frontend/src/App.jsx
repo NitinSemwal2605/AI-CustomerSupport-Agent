@@ -247,7 +247,7 @@ export default function App() {
     target.style.height = `${Math.min(target.scrollHeight, 180)}px`;
   };
 
-  // Dispatch message to Gemini via Express backend
+  // Dispatch message to Gemini via Express backend (Streaming SSE)
   const handleSendMessage = async (textToSend = null) => {
     const text = (textToSend || inputValue).trim();
     if (!text || isLoading) return;
@@ -277,7 +277,7 @@ export default function App() {
         ...(apiKey ? { 'x-gemini-api-key': apiKey.trim() } : {})
       };
 
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -288,35 +288,101 @@ export default function App() {
         })
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || data.message || `Server error (${response.status})`);
+      if (!response.ok) {
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errData.message || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
       }
 
-      const assistantMessage = {
+      // Add streaming placeholder assistant message to state
+      const assistantId = Date.now().toString();
+      const placeholderMessage = {
+        id: assistantId,
         role: 'assistant',
-        content: data.text,
-        sources: data.sources || [],
+        content: '',
+        sources: [],
+        isStreaming: true,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, placeholderMessage]);
 
-      if (data.conversationId) {
-        setCurrentConversationId(data.conversationId);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedText = '';
+      let sources = [];
+      let finalConversationId = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+
+          const dataStr = trimmed.slice(5).trim();
+          if (dataStr === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
+            if (parsed.text) {
+              accumulatedText += parsed.text;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: accumulatedText, isStreaming: true } : m))
+              );
+            }
+            if (parsed.sources) {
+              sources = parsed.sources;
+            }
+            if (parsed.conversationId) {
+              finalConversationId = parsed.conversationId;
+            }
+          } catch (jsonErr) {
+            if (jsonErr.message && !jsonErr.message.includes('JSON')) {
+              throw jsonErr;
+            }
+          }
+        }
+      }
+
+      // Finalize the streaming message
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: accumulatedText, sources, isStreaming: false }
+            : m
+        )
+      );
+
+      if (finalConversationId) {
+        setCurrentConversationId(finalConversationId);
         fetchConversations();
       }
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `⚠️ **Shopping Assistant Notice:**\n${err.message}\n\n*Check your API key in Settings or backend/.env.*`,
-          isError: true,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => !(m.role === 'assistant' && m.isStreaming && !m.content));
+        return [
+          ...filtered,
+          {
+            role: 'assistant',
+            content: `⚠️ **Shopping Assistant Notice:**\n${err.message}\n\n*Check your API key in Settings or backend/.env.*`,
+            isError: true,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ];
+      });
     } finally {
       setIsLoading(false);
     }
@@ -598,7 +664,18 @@ export default function App() {
 
                     <div className="message-body">
                       <div className="message-bubble">
-                        <FormattedText text={msg.content} />
+                        {msg.content ? (
+                          <>
+                            <FormattedText text={msg.content} />
+                            {msg.isStreaming && <span className="streaming-cursor" />}
+                          </>
+                        ) : msg.isStreaming ? (
+                          <div className="typing-indicator" style={{ padding: '4px 0' }}>
+                            <div className="typing-dot" />
+                            <div className="typing-dot" />
+                            <div className="typing-dot" />
+                          </div>
+                        ) : null}
 
                         {/* Grounding Store Links */}
                         {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
@@ -639,7 +716,7 @@ export default function App() {
                   </div>
                 ))}
 
-                {isLoading && (
+                {isLoading && !messages.some((m) => m.isStreaming) && (
                   <div className="message-row assistant">
                     <div className="message-avatar assistant">
                       <Sparkles size={16} />
