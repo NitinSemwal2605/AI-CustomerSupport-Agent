@@ -9,7 +9,7 @@ const frontendDir = path.join(rootDir, 'frontend');
 const pgDataDir = path.join(backendDir, 'data', 'postgres');
 
 console.log('\n=============================================================');
-console.log('Starting Gemini Full-Stack App (Backend + Frontend + DB)...');
+console.log('Starting AI Shopping Assistant (Backend + Frontend + DB)...');
 console.log('=============================================================\n');
 
 // Ensure PostgreSQL is running if local pg data exists

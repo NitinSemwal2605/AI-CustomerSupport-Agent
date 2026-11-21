@@ -1,14 +1,13 @@
 {
-  "name": "ai-customersupport-agent",
+  "name": "ai-shopping-assistant",
   "version": "1.0.0",
-  "description": "Enterprise-grade AI Customer Support Agent and Applied AI Laboratory — progressing from LLM APIs and prompt engineering to RAG (Retrieval-Augmented Generation), vector databases, tool calling, and autonomous support workflows.",
+  "description": "Full-stack AI Shopping Assistant powered by Google Gemini API with real-time streaming, search grounding, verified retailer links, and multi-turn context management.",
   "scripts": {
     "dev": "node start-dev.js",
     "start": "node start-dev.js",
     "start:backend": "cd backend && npm start",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "first-request": "cd backend && npm run first-request",
     "build:frontend": "cd frontend && npm run build",
     "db:start": "cd backend && npm run db:start",
     "db:stop": "cd backend && npm run db:stop",

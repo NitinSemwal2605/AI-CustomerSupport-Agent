@@ -6,7 +6,6 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
-  FileJson,
   LogOut,
   Sun,
   Moon,
@@ -21,7 +20,6 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import FormattedText from './components/FormattedText';
-import InspectorModal from './components/InspectorModal';
 import SettingsModal from './components/SettingsModal';
 import AuthModal from './components/AuthModal';
 
@@ -58,8 +56,6 @@ export default function App() {
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [inspectorData, setInspectorData] = useState(null);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
   // Server health state
   const [serverStatus, setServerStatus] = useState(null);
@@ -118,22 +114,7 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const handleLoginSuccess = (userData, userToken) => {
-    setUser(userData);
-    setToken(userToken);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('gemini_auth_token');
-    localStorage.removeItem('gemini_auth_user');
-    setUser(null);
-    setToken('');
-    setMessages([]);
-    setConversations([]);
-    setCurrentConversationId(null);
-  };
-
-  // Load user conversations from PostgreSQL
+  // Fetch conversations when user is logged in
   const fetchConversations = async () => {
     if (!token) return;
     try {
@@ -141,63 +122,79 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.success) {
-        setConversations(data.conversations || []);
+      if (data.success && Array.isArray(data.conversations)) {
+        setConversations(data.conversations);
       }
     } catch (err) {
-      console.warn('Could not load conversations:', err);
+      console.error('Failed to load conversations:', err);
     }
   };
 
   useEffect(() => {
-    if (token) {
+    if (user && token) {
       fetchConversations();
-    } else {
-      setConversations([]);
-      setCurrentConversationId(null);
     }
-  }, [token]);
+  }, [user, token]);
 
-  // Load a conversation's messages
+  const handleLoginSuccess = (userData, authToken) => {
+    setUser(userData);
+    setToken(authToken);
+    localStorage.setItem('gemini_auth_user', JSON.stringify(userData));
+    localStorage.setItem('gemini_auth_token', authToken);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setToken('');
+    setConversations([]);
+    setCurrentConversationId(null);
+    setMessages([]);
+    localStorage.removeItem('gemini_auth_user');
+    localStorage.removeItem('gemini_auth_token');
+  };
+
+  // Select an existing conversation thread
   const selectConversation = async (convId) => {
-    if (convId === currentConversationId || isLoading) return;
+    if (convId === currentConversationId) return;
+    setCurrentConversationId(convId);
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
       const res = await fetch(`/api/conversations/${convId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success && data.conversation) {
-        setCurrentConversationId(data.conversation.id);
-        setMessages(data.conversation.messages || []);
+        setMessages(
+          data.conversation.messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            modelUsed: m.modelUsed,
+            latencyMs: m.latencyMs,
+            sources: m.sources || [],
+            inspector: m.inspector || null,
+            timestamp: m.timestamp
+          }))
+        );
       }
     } catch (err) {
-      console.error('Failed to load conversation:', err);
+      console.error('Failed to load conversation details:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Start a fresh shopping conversation
   const startNewChat = () => {
     setCurrentConversationId(null);
     setMessages([]);
     setInputValue('');
   };
 
-  // Start inline rename
-  const handleStartRename = (conv, e) => {
-    e.stopPropagation();
-    setEditingConversationId(conv.id);
-    setEditingTitle(conv.title);
-  };
-
-  // Save renamed title
+  // Rename a conversation
   const handleSaveRename = async (convId) => {
-    if (!editingTitle.trim()) {
-      setEditingConversationId(null);
-      return;
-    }
-    const cleanTitle = editingTitle.trim();
+    if (!editingTitle.trim()) return;
     try {
       const res = await fetch(`/api/conversations/${convId}`, {
         method: 'PATCH',
@@ -205,25 +202,27 @@ export default function App() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ title: cleanTitle })
+        body: JSON.stringify({ title: editingTitle.trim() })
       });
       const data = await res.json();
       if (data.success) {
         setConversations((prev) =>
-          prev.map((c) => (c.id === convId ? { ...c, title: cleanTitle } : c))
+          prev.map((c) => (c.id === convId ? { ...c, title: data.conversation.title } : c))
         );
       }
     } catch (err) {
       console.error('Failed to rename conversation:', err);
     } finally {
       setEditingConversationId(null);
+      setEditingTitle('');
     }
   };
 
-  // Delete conversation
+  // Delete a conversation
   const handleDeleteConversation = async (convId, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this conversation?')) return;
+    if (!window.confirm('Delete this shopping chat?')) return;
+
     try {
       const res = await fetch(`/api/conversations/${convId}`, {
         method: 'DELETE',
@@ -292,44 +291,28 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        const errorText = data.error || data.message || 'Failed to generate response.';
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: `⚠️ **Error from API:**\n${errorText}\n\n*Tip: Check your API key in Settings or backend/.env.*`,
-            isError: true,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-      } else {
-        const assistantMessage = {
-          role: 'assistant',
-          content: data.text,
-          modelUsed: data.modelUsed,
-          latencyMs: data.latencyMs,
-          finishReason: data.finishReason,
-          usage: data.usage,
-          inspector: data.inspector,
-          sources: data.sources || [],
-          webSearchQueries: data.webSearchQueries || [],
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
+        throw new Error(data.error || data.message || `Server error (${response.status})`);
+      }
 
-        setMessages((prev) => [...prev, assistantMessage]);
+      const assistantMessage = {
+        role: 'assistant',
+        content: data.text,
+        sources: data.sources || [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
 
-        // If conversationId was returned, update current ID and refresh list
-        if (data.conversationId) {
-          setCurrentConversationId(data.conversationId);
-          fetchConversations();
-        }
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      if (data.conversationId) {
+        setCurrentConversationId(data.conversationId);
+        fetchConversations();
       }
     } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ **Network Error:** Could not connect to the backend server.\nMake sure the Express backend is running on \`http://localhost:5000\`.\nError: ${err.message}`,
+          content: `⚠️ **Shopping Assistant Notice:**\n${err.message}\n\n*Check your API key in Settings or backend/.env.*`,
           isError: true,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -346,11 +329,6 @@ export default function App() {
     }
   };
 
-  const openInspector = (telemetryData) => {
-    setInspectorData(telemetryData);
-    setIsInspectorOpen(true);
-  };
-
   // If user is not authenticated, show JWT Auth Screen
   if (!user || !token) {
     return <AuthModal onLoginSuccess={handleLoginSuccess} />;
@@ -365,8 +343,8 @@ export default function App() {
         <div className="sidebar-header">
           <div className="brand-row">
             <div className="brand-logo">
-              <Sparkles size={18} color="#10a37f" />
-              <span>AI Support Agent</span>
+              <ShoppingBag size={18} color="#10a37f" />
+              <span>Shopping Assistant</span>
             </div>
             <button
               className="toggle-sidebar-btn"
@@ -379,17 +357,17 @@ export default function App() {
 
           <button className="new-chat-btn" onClick={startNewChat}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Plus size={16} /> New Chat
+              <Plus size={16} /> New Shopping Chat
             </span>
             <span style={{ fontSize: '11px', color: '#9ca3af' }}>Ctrl+K</span>
           </button>
         </div>
 
         <div className="sidebar-content">
-          <div className="sidebar-section-title">Your Conversations</div>
+          <div className="sidebar-section-title">Your Shopping Chats</div>
           {conversations.length === 0 ? (
             <div className="empty-conversations-hint">
-              <span>No saved chats yet. Start a conversation to save!</span>
+              <span>No saved chats yet. Ask a shopping question to begin!</span>
             </div>
           ) : (
             <div className="conversations-list">
@@ -419,18 +397,18 @@ export default function App() {
                           autoFocus
                         />
                         <button
-                          className="conv-inline-btn check"
+                          className="conv-inline-btn"
                           onClick={() => handleSaveRename(conv.id)}
                           title="Save title"
                         >
-                          <Check size={12} />
+                          <Check size={13} color="#16a34a" />
                         </button>
                         <button
-                          className="conv-inline-btn cancel"
+                          className="conv-inline-btn"
                           onClick={() => setEditingConversationId(null)}
                           title="Cancel"
                         >
-                          <X size={12} />
+                          <X size={13} color="#dc2626" />
                         </button>
                       </div>
                     ) : (
@@ -442,15 +420,19 @@ export default function App() {
                         <div className="conversation-actions">
                           <button
                             className="conv-action-btn"
-                            onClick={(e) => handleStartRename(conv, e)}
-                            title="Rename chat"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingConversationId(conv.id);
+                              setEditingTitle(conv.title);
+                            }}
+                            title="Rename"
                           >
                             <Pencil size={12} />
                           </button>
                           <button
                             className="conv-action-btn delete"
                             onClick={(e) => handleDeleteConversation(conv.id, e)}
-                            title="Delete chat"
+                            title="Delete"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -464,16 +446,25 @@ export default function App() {
           )}
         </div>
 
+        {/* Sidebar Footer with Theme Toggle & User Account */}
         <div className="sidebar-footer">
-          {/* Theme Toggle Button */}
-          <button className="sidebar-action-btn" onClick={toggleTheme}>
-            {theme === 'dark' ? <Sun size={15} color="#f59e0b" /> : <Moon size={15} />}
-            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
+          <div className="theme-toggle-row">
+            <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>Appearance</span>
+            <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+              {theme === 'light' ? (
+                <>
+                  <Moon size={14} /> <span>Dark Mode</span>
+                </>
+              ) : (
+                <>
+                  <Sun size={14} /> <span>Light Mode</span>
+                </>
+              )}
+            </button>
+          </div>
 
-          {/* User Account / Sign Out */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 2px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+          <div className="user-profile-bar">
+            <div className="user-info-cluster">
               <div className="user-avatar-circle">
                 {username.charAt(0).toUpperCase()}
               </div>
@@ -501,7 +492,7 @@ export default function App() {
 
       {/* MAIN CHAT AREA */}
       <main className="main-chat">
-        {/* Top Navbar: Clean & minimal, no duplicate buttons */}
+        {/* Top Navbar */}
         <header className="chat-navbar">
           <div className="nav-left">
             {!sidebarOpen && (
@@ -520,9 +511,9 @@ export default function App() {
         {messages.length === 0 ? (
           <div className="centered-home-wrapper">
             <div className="centered-home-inner">
-              <h1 className="welcome-headline">AI Customer Support Agent</h1>
+              <h1 className="welcome-headline">AI Shopping Assistant</h1>
               <p className="welcome-subtext">
-                Ask about any product, compare prices across stores, or get technical and shopping assistance with live verified links.
+                Your smart companion for finding products, comparing specs, discovering deals, and buying with verified store links.
               </p>
 
               {/* Centered Search/Chat Bar with MODEL SELECTION ONLY INSIDE */}
@@ -531,7 +522,7 @@ export default function App() {
                   ref={centerTextareaRef}
                   className="chat-textarea"
                   rows="2"
-                  placeholder="Ask about any product, specs, or where to buy with links..."
+                  placeholder="Ask for product recommendations, compare items, or find deals..."
                   value={inputValue}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
@@ -564,28 +555,28 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Customer Support & Product Research Suggestions */}
+              {/* Quick Shopping Suggestions for Indian Customers */}
               <div className="prompt-suggestions">
                 <button
                   className="suggestion-pill"
-                  onClick={() => handleSendMessage('Where can I buy Sony WH-1000XM5 headphones and what are the best store links?')}
+                  onClick={() => handleSendMessage('Recommend the best wireless earbuds under ₹3,000 (boAt, Noise, OnePlus) with Amazon & Flipkart links')}
                 >
                   <ShoppingBag size={13} color="var(--accent-green)" />
-                  <span>Where can I buy Sony WH-1000XM5 with links?</span>
+                  <span>Best earbuds under ₹3,000 with links</span>
                 </button>
                 <button
                   className="suggestion-pill"
-                  onClick={() => handleSendMessage('Compare MacBook Air M3 vs Dell XPS 13 specs, prices, and retailer links')}
+                  onClick={() => handleSendMessage('Compare OnePlus 12R vs Samsung Galaxy S23 FE specs, Indian price, and bank offers')}
                 >
                   <Globe size={13} color="var(--accent-blue)" />
-                  <span>Compare MacBook Air M3 vs Dell XPS 13</span>
+                  <span>Compare OnePlus 12R vs Samsung S23 FE</span>
                 </button>
                 <button
                   className="suggestion-pill"
-                  onClick={() => handleSendMessage('What are the top 3 noise cancelling earbuds under $150 with purchase links?')}
+                  onClick={() => handleSendMessage('What are the best laptops under ₹55,000 for coding and college in India?')}
                 >
                   <ShoppingBag size={13} color="var(--accent-purple)" />
-                  <span>Top noise cancelling earbuds under $150</span>
+                  <span>Best coding laptops under ₹55,000</span>
                 </button>
               </div>
             </div>
@@ -596,7 +587,7 @@ export default function App() {
               <div className="messages-inner">
                 {messages.map((msg, index) => (
                   <div
-                    key={index}
+                    key={msg.id || index}
                     className={`message-row ${msg.role === 'user' ? 'user' : 'assistant'}`}
                   >
                     {msg.role === 'assistant' && (
@@ -609,64 +600,35 @@ export default function App() {
                       <div className="message-bubble">
                         <FormattedText text={msg.content} />
 
-                        {/* Verified Grounding Sources & Store Links (Prioritizing Top Retailers: Amazon, Flipkart, Myntra, etc.) */}
+                        {/* Grounding Store Links */}
                         {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                           <div className="grounding-sources-block">
                             <div className="grounding-sources-header">
                               <ShoppingBag size={13} color="var(--accent-green)" />
-                              <span>Verified Retailer Links ({msg.sources.length})</span>
+                              <span>Verified Stores & Brands ({msg.sources.length})</span>
                             </div>
                             <div className="grounding-sources-list">
-                              {msg.sources.slice(0, 10).map((source, sIdx) => {
-                                const isTopTier = source.isTopTier;
-                                const displayTitle = source.title || source.originalTitle || 'Store';
-                                const badgeText = source.badge;
-
-                                return (
-                                  <a
-                                    key={sIdx}
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`grounding-source-chip ${isTopTier ? 'top-tier' : ''}`}
-                                    title={source.originalTitle || source.title || source.url}
-                                  >
-                                    {isTopTier && (
-                                      <CheckCircle2 size={11} color="var(--accent-green)" className="verified-badge-icon" />
-                                    )}
-                                    <span className="source-chip-text">{displayTitle}</span>
-                                    {badgeText && (
-                                      <span className="source-badge-tag">{badgeText}</span>
-                                    )}
-                                    <ExternalLink size={10} className="source-chip-icon" />
-                                  </a>
-                                );
-                              })}
+                              {msg.sources.slice(0, 10).map((src, sIdx) => (
+                                <a
+                                  key={sIdx}
+                                  href={src.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`grounding-source-chip ${src.score >= 80 ? 'top-tier' : ''}`}
+                                  title={src.originalTitle || src.title || src.url}
+                                >
+                                  {src.score >= 80 && (
+                                    <CheckCircle2 size={11} color="var(--accent-green)" className="verified-badge-icon" />
+                                  )}
+                                  <span className="source-chip-text">{src.title}</span>
+                                  {src.tier && <span className="source-badge-tag">{src.tier}</span>}
+                                  <ExternalLink size={10} className="source-chip-icon" />
+                                </a>
+                              ))}
                             </div>
                           </div>
                         )}
                       </div>
-
-                      {/* Telemetry metadata for Model responses */}
-                      {msg.role === 'assistant' && !msg.isError && (
-                        <div className="message-telemetry">
-                          <div
-                            className="telemetry-pill"
-                            onClick={() => openInspector(msg)}
-                            title="Click to view raw JSON request & response"
-                          >
-                            <FileJson size={12} color="#2563eb" />
-                            <span>Inspect Payload</span>
-                          </div>
-
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', padding: '1px 6px', borderRadius: '4px', fontWeight: '500' }}>
-                              {msg.modelUsed || selectedModel}
-                            </span>
-                            {msg.latencyMs ? <span>• {msg.latencyMs}ms</span> : null}
-                          </span>
-                        </div>
-                      )}
                     </div>
 
                     {msg.role === 'user' && (
@@ -696,7 +658,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Bottom Docked Input Area during active conversation with MODEL SELECTION INSIDE */}
+            {/* Bottom Docked Input Area */}
             <div className="input-dock">
               <div className="input-container">
                 <div className="search-box-unified">
@@ -704,7 +666,7 @@ export default function App() {
                     ref={textareaRef}
                     className="chat-textarea"
                     rows="1"
-                    placeholder="Ask Gemini anything..."
+                    placeholder="Ask for product recommendations, compare items, or find deals..."
                     value={inputValue}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
@@ -737,20 +699,13 @@ export default function App() {
                 </div>
 
                 <div className="input-footer">
-                  Gemini may display inaccurate info.
+                  AI Shopping Assistant powered by Google Gemini with live streaming and verified store links.
                 </div>
               </div>
             </div>
           </>
         )}
       </main>
-
-      {/* Inspector Modal */}
-      <InspectorModal
-        isOpen={isInspectorOpen}
-        onClose={() => setIsInspectorOpen(false)}
-        telemetryData={inspectorData}
-      />
 
       {/* Settings Modal */}
       <SettingsModal

@@ -1,5 +1,5 @@
 /**
- * Chat & Gemini AI Routes
+ * Chat & Gemini AI Routes - AI Shopping Assistant
  */
 
 const express = require('express');

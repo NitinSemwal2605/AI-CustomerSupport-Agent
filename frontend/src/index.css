@@ -872,6 +872,8 @@ body {
   40% { transform: scale(1); opacity: 1; }
 }
 
+
+
 /* Auth Modal Styles */
 .auth-overlay {
   position: fixed;

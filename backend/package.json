@@ -1,12 +1,11 @@
 {
-  "name": "ai-customersupport-agent-backend",
+  "name": "ai-shopping-assistant-backend",
   "version": "1.0.0",
-  "description": "Express.js & Prisma backend for AI Customer Support Agent with Gemini API & PostgreSQL",
+  "description": "Express.js & Prisma backend for AI Shopping Assistant with Gemini API real-time streaming & PostgreSQL",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "first-request": "node first-request.js",
     "db:start": "pg_ctl -D data/postgres -l data/postgres/server.log start",
     "db:stop": "pg_ctl -D data/postgres stop",
     "db:status": "pg_ctl -D data/postgres status",

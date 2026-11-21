@@ -1,39 +1,35 @@
-# AI Customer Support Agent
+# AI Shopping Assistant
 
-A full-stack, enterprise-grade AI Customer Support Agent and Applied AI learning laboratory. Built with **Node.js (Express)**, **Prisma ORM**, and **PostgreSQL** on the backend, and **React.js (Vite)** on the frontend.
+A full-stack, real-time **AI Shopping Assistant** built with **Node.js (Express)**, **Prisma ORM**, and **PostgreSQL** on the backend, and **React.js (Vite)** on the frontend, powered by the **Google Gemini API**.
 
-This repository serves as a practical, production-oriented project for implementing end-to-end Applied AI concepts—scaling from core Gemini LLM integrations and telemetry up through Retrieval-Augmented Generation (RAG), vector databases, function calling, and autonomous support workflows.
+The assistant understands customer shopping queries, suggests tailored product recommendations, performs side-by-side spec comparisons, discovers deals, and provides live verified retailer links.
 
 ---
 
-## Applied AI Architecture & Roadmap
+## Key Features
 
-### Phase 1: LLM Foundations & Production Infrastructure (Completed)
-- **API Integration**: Direct Google Gemini API communication via `@google/generative-ai`.
-- **System Instructions & Roles**: Support agent personas with strict role boundaries (`system`, `user`, `model`).
-- **Telemetry & Cost Tracking**: Exact prompt and completion token accounting with real-time USD billing calculations.
-- **Relational Data & Auth**: User authentication, password hashing with bcrypt, JWT session management, and PostgreSQL persistence through Prisma ORM.
-
-### Phase 2: Retrieval-Augmented Generation (RAG) (In Progress / Next)
-- **Knowledge Base Ingestion**: Markdown, PDF, and FAQ document parsing for customer support domains.
-- **Semantic Chunking**: Context-preserving sliding window chunking with metadata tagging.
-- **Vector Embeddings**: Generating embeddings using Google text-embedding models.
-- **Vector Database**: Semantic similarity search and cosine distance ranking to inject grounded domain knowledge into customer prompts.
-
-### Phase 3: Function Calling & Tool Use (Roadmap)
-- **Support Operations**: Live tools for ticket status lookup, order tracking, and refund eligibility verification.
-- **Structured Outputs**: Enforcing JSON schema validation on tool arguments and responses.
-
-### Phase 4: Autonomous Support Workflows (Roadmap)
-- **Conversation State & Long-Term Memory**: Multi-turn history summarization and customer profile persistence.
-- **Guardrails & Escalation**: Sentiment analysis, safety filters, and automated escalation to human support tiers.
+1. **Gemini API Integration**: Direct integration with Google Gemini (`gemini-2.5-flash`, `gemini-3.5-flash-lite`, and `gemini-flash-latest`) via `@google/generative-ai`.
+2. **System Prompts & Shopping Persona**: Specialized system instructions that guide the model to provide key specs, pros & cons, estimated price ranges, and target buyer verdicts.
+3. **Product-Related Conversational Assistance**: Intelligently understands queries, clarifies ambiguous specs, contrasts products, and recommends solutions for Indian shoppers.
+4. **Context Management**:
+   - **Sliding Window**: Caps history to recent turns to keep responses snappy and prevent token bloat.
+   - **Strict Turn Alternation**: Automatically merges consecutive same-role messages so multi-turn conversations strictly alternate between `user` and `model`.
+   - **Role Mapping**: Sanitizes `assistant` to Gemini's `model` role and ensures the conversation starts with a `user` turn.
+5. **Multi-Turn Conversation History & Persistence**:
+   - Saves conversations and messages in PostgreSQL using Prisma ORM.
+   - User account registration & login with bcrypt password hashing and JWT sessions.
+   - Sidebar UI to view past shopping chats, rename threads, and delete history.
+6. **Product-Related Assistance & Verified Retailer Links**:
+   - Integrated with Google Search grounding to retrieve live, current product information.
+   - Prioritizes trusted e-commerce platforms (Amazon, Flipkart, Myntra, Best Buy, Croma, Official Brand Stores).
+   - Filters out spam, video sites, and unverified blogs.
 
 ---
 
 ## Project Structure
 
 ```
-AI-CustomerSupport-Agent/
+CustomerSupportAI/
 ├── backend/
 │   ├── src/
 │   │   ├── config/           # Database & environment variables
@@ -41,39 +37,32 @@ AI-CustomerSupport-Agent/
 │   │   │   └── db.js
 │   │   ├── controllers/      # HTTP request & response handlers
 │   │   │   ├── authController.js
-│   │   │   └── chatController.js
-│   │   ├── services/         # Decoupled business & AI logic
+│   │   │   ├── chatController.js       # Chat completion & testing
+│   │   │   └── conversationController.js
+│   │   ├── services/         # Business & Gemini AI logic
 │   │   │   ├── authService.js
-│   │   │   └── geminiService.js
+│   │   │   ├── conversationService.js  # PostgreSQL conversation persistence
+│   │   │   └── geminiService.js        # Context manager & search grounding
 │   │   ├── middlewares/      # JWT auth, error & 404 handlers
-│   │   │   ├── authMiddleware.js
-│   │   │   ├── errorHandler.js
-│   │   │   └── notFoundHandler.js
-│   │   ├── routes/           # Modular Express route definitions
-│   │   │   ├── authRoutes.js
-│   │   │   ├── chatRoutes.js
-│   │   │   └── index.js
+│   │   ├── routes/           # Express API route definitions
 │   │   ├── app.js            # Express application setup
 │   │   └── server.js         # HTTP server listener
 │   ├── prisma/
-│   │   └── schema.prisma     # Prisma data models (PostgreSQL User schema)
-│   ├── first-request.js      # Standalone practice script for your first request
-│   ├── package.json          # Express, @prisma/client & @google/generative-ai
-│   ├── .env.example          # Template for GEMINI_API_KEY & DATABASE_URL
-│   └── .env                  # Local environment variables
+│   │   └── schema.prisma     # Prisma data models (User, Conversation, Message)
+│   ├── package.json
+│   ├── .env.example
+│   └── .env
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AuthModal.jsx         # User registration & login modal
-│   │   │   ├── FormattedText.jsx     # Markdown & copyable code blocks
-│   │   │   ├── InspectorModal.jsx    # Raw request/response & cost telemetry
-│   │   │   └── SettingsModal.jsx     # Dynamic API key & parameter tuner
-│   │   ├── App.jsx           # Customer Support Agent interface
+│   │   │   ├── FormattedText.jsx     # Markdown renderer with copyable code blocks
+│   │   │   └── SettingsModal.jsx     # Dynamic API key tuner & status check
+│   │   ├── App.jsx           # AI Shopping Assistant interface
 │   │   ├── index.css         # Minimalist theme styles (light & dark mode)
 │   │   └── main.jsx          # React DOM entry
-│   ├── index.html
 │   ├── package.json
-│   └── vite.config.js        # API proxy to backend
+│   └── vite.config.js
 ├── package.json              # Root orchestration scripts
 ├── start-dev.js              # One-command development runner (DB + Server + Frontend)
 └── README.md
@@ -84,17 +73,12 @@ AI-CustomerSupport-Agent/
 ## Quick Start
 
 ### 1. Prerequisites
-- Node.js (v18 or higher)
-- PostgreSQL (local instance or cloud database such as Supabase / Neon)
-- Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/)
+- **Node.js** (v18 or higher)
+- **PostgreSQL** (local instance or cloud database such as Supabase / Neon)
+- **Google Gemini API Key** from [Google AI Studio](https://aistudio.google.com/)
 
-### 2. Configure Backend Environment
-Copy the example environment file in `backend`:
-```bash
-cp backend/.env.example backend/.env
-```
-
-Configure `backend/.env`:
+### 2. Configure Environment Variables
+Ensure `backend/.env` contains your Gemini API key and PostgreSQL URL:
 ```bash
 # Google Gemini API Key
 GEMINI_API_KEY=your_gemini_api_key_here
@@ -103,68 +87,41 @@ GEMINI_API_KEY=your_gemini_api_key_here
 PORT=5000
 
 # JWT Authentication Secret
-JWT_SECRET=your_jwt_secret_key_here
+JWT_SECRET=super_secure_jwt_secret_key
 
-# PostgreSQL Database Connection URL for Prisma
+# PostgreSQL Connection URL
 DATABASE_URL="postgresql://user:password@localhost:5432/closedai_db?schema=public"
 ```
 
-### 3. Sync Database Schema
-Push the Prisma schema to your PostgreSQL database:
-```bash
-npm run db:push
-```
-
-### 4. Start the Application
-Run both backend and frontend with the root development script:
+### 3. Run the Entire Full-Stack App
+From the project root:
 ```bash
 npm run dev
+# or
+npm start
 ```
-Alternatively, run each service separately:
-- **Backend:** `cd backend && npm start` (runs on `http://localhost:5000`)
-- **Frontend:** `cd frontend && npm run dev` (runs on `http://localhost:5173`)
 
-Open your browser to: **`http://localhost:5173`**
-
----
-
-## Core Technical Concepts
-
-### 1. Gemini API Authentication & Model Selection
-- Authentication is handled securely on the server via `process.env.GEMINI_API_KEY`.
-- Supports dynamic client-level keys through request headers (`x-gemini-api-key`) for testing and sandboxing.
-- Direct model selection (`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-flash-latest`) with custom temperature and max token configurations.
-
-### 2. User Authentication (Prisma ORM + PostgreSQL)
-- **Database Schema**: Managed in `backend/prisma/schema.prisma` with UUID primary keys and unique constraints.
-- **Security**: Passwords hashed using `bcryptjs` with salt rounds. Sessions managed via signed JWT tokens.
-- **Endpoints**:
-  - `POST /api/auth/register`: Create user account and return JWT.
-  - `POST /api/auth/login`: Authenticate credentials against PostgreSQL and return JWT.
-  - `GET /api/auth/me`: Validate JWT token and retrieve current user context.
-
-### 3. Conversation Persistence & Chat Management
-- **Relational History**: Automatically persists user conversations and assistant messages with grounding sources and telemetry to PostgreSQL.
-- **Chat Management**:
-  - `GET /api/conversations`: List all conversations for the authenticated user, ordered by latest activity.
-  - `GET /api/conversations/:id`: Retrieve complete chat history for a specific conversation thread.
-  - `PATCH /api/conversations/:id`: Rename conversation title.
-  - `DELETE /api/conversations/:id`: Delete conversation and cascaded messages.
-- **Interactive Sidebar UI**: Allows users to switch between past chats, trigger inline renames with save/cancel controls, and delete conversations.
-
-### 4. Request & Response Telemetry
-- Every exchange captures complete round-trip JSON payloads:
-  - System instructions (`systemInstruction`)
-  - Full conversation history (`contents` array with `user` and `model` roles)
-  - Finish reason (`STOP`, etc.)
-  - Roundtrip latency in milliseconds
-
-### 5. Interactive Telemetry Inspector
-- Embedded modal allowing users and engineers to inspect raw JSON payloads, model metadata, and role mappings directly inside the UI.
+This single command:
+1. Starts the local PostgreSQL database server (if stopped).
+2. Launches the Node.js Express backend on `http://localhost:5000`.
+3. Launches the Vite React frontend on `http://localhost:5173`.
 
 ---
 
-## Database Management Scripts
-- `npm run db:push`: Synchronize Prisma schema with PostgreSQL without generating SQL migrations.
-- `npm run db:generate`: Regenerate Prisma Client.
-- `npm run db:studio`: Launch Prisma Studio web GUI to browse and edit database records.
+## API Endpoints
+
+### Shopping Chat
+- `POST /api/chat`: Chat completion with Gemini and search grounding.
+- `GET /api/models`: List available Gemini models with capability tags.
+- `POST /api/test-key`: Test and validate a Gemini API key.
+
+### Conversations & History
+- `GET /api/conversations`: List all saved shopping chat threads for the logged-in user.
+- `GET /api/conversations/:id`: Retrieve full message history for a specific thread.
+- `PATCH /api/conversations/:id`: Rename conversation title.
+- `DELETE /api/conversations/:id`: Delete a conversation thread and its messages.
+
+### Authentication
+- `POST /api/auth/register`: Create a new user account.
+- `POST /api/auth/login`: Authenticate and receive a JWT session token.
+- `GET /api/auth/me`: Validate the current session token.
