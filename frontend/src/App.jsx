@@ -109,6 +109,18 @@ export default function App() {
       .catch((err) => console.error('Health check failed:', err));
   }, []);
 
+  // Global shortcut: Ctrl+K or Cmd+K to start a new shopping chat
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        startNewChat();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -480,7 +492,7 @@ export default function App() {
                     ) : (
                       <>
                         <span className="conversation-title" title={conv.title}>
-                          {conv.title}
+                          {(conv.title || '').replace(/^['"]+|['"]+$/g, '')}
                         </span>
 
                         <div className="conversation-actions">
@@ -515,7 +527,7 @@ export default function App() {
         {/* Sidebar Footer with Theme Toggle & User Account */}
         <div className="sidebar-footer">
           <div className="theme-toggle-row">
-            <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>Appearance</span>
+            <span className="theme-toggle-label">Appearance</span>
             <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
               {theme === 'light' ? (
                 <>
@@ -534,11 +546,11 @@ export default function App() {
               <div className="user-avatar-circle">
                 {username.charAt(0).toUpperCase()}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <div className="user-details-col">
+                <span className="user-name-text">
                   {username}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                <span className="user-email-text" title={user.email}>
                   {user.email}
                 </span>
               </div>
