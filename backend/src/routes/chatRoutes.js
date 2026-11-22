@@ -17,4 +17,4 @@ router.get('/models', handleGetModels);
 router.post('/test-key', handleTestKey);
 router.post('/chat/stream', handleChatStream);
 
-module.exports = router;
+module.exports = router; 

@@ -20,6 +20,7 @@ async function authMiddleware(req, res, next) {
   }
 
   try {
+    // Verify JWT token
     const decoded = jwt.verify(token, env.JWT_SECRET);
     if (!decoded || !decoded.id) {
       return res.status(401).json({
@@ -40,6 +41,7 @@ async function authMiddleware(req, res, next) {
       });
     }
 
+    // Attach user to request
     req.user = user;
     next();
   } catch (err) {

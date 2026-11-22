@@ -64,6 +64,7 @@ async function registerUser({ name, email, password }) {
     throw error;
   }
 
+  // Generate salt and password hash using bcrypt
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(password, salt);
 
@@ -75,6 +76,7 @@ async function registerUser({ name, email, password }) {
     }
   });
 
+  // Jwt.sign accepts (payload, secret, options)
   const token = jwt.sign(
     { id: newUser.id, name: newUser.name, email: newUser.email },
     env.JWT_SECRET,
