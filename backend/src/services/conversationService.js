@@ -218,6 +218,26 @@ async function saveChatTurn({
       where: { id: targetConversationId },
       data: { updatedAt: new Date() }
     });
+
+    // 3. Increment cumulative token usage for the user
+    if (userId && assistantResponse.usage) {
+      const pTokens = assistantResponse.usage.promptTokens || 0;
+      const rTokens = assistantResponse.usage.candidatesTokens || 0;
+      const tTokens = assistantResponse.usage.totalTokens || (pTokens + rTokens);
+
+      if (tTokens > 0) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            totalPromptTokens: { increment: pTokens },
+            totalResponseTokens: { increment: rTokens },
+            totalTokens: { increment: tTokens }
+          }
+        }).catch((err) => {
+          console.warn('Could not update user token metrics:', err.message);
+        });
+      }
+    }
   }
 
   return targetConversationId;

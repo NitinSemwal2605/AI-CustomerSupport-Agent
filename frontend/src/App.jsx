@@ -327,6 +327,7 @@ export default function App() {
       let buffer = '';
       let accumulatedText = '';
       let sources = [];
+      let tokenUsage = null;
       let finalConversationId = null;
 
       while (true) {
@@ -358,6 +359,9 @@ export default function App() {
             if (parsed.sources) {
               sources = parsed.sources;
             }
+            if (parsed.usage) {
+              tokenUsage = parsed.usage;
+            }
             if (parsed.conversationId) {
               finalConversationId = parsed.conversationId;
             }
@@ -373,7 +377,7 @@ export default function App() {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: accumulatedText, sources, isStreaming: false }
+            ? { ...m, content: accumulatedText, sources, inspector: tokenUsage ? { usage: tokenUsage } : m.inspector, isStreaming: false }
             : m
         )
       );

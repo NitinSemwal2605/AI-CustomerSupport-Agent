@@ -124,7 +124,14 @@ async function loginUser({ email, password }) {
   );
 
   return {
-    user: { id: user.id, name: user.name, email: user.email },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      totalPromptTokens: user.totalPromptTokens || 0,
+      totalResponseTokens: user.totalResponseTokens || 0,
+      totalTokens: user.totalTokens || 0
+    },
     token
   };
 }

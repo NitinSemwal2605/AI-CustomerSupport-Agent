@@ -222,19 +222,29 @@ async function streamGeminiChat({
     }
   }
 
-  // Once stream completes, extract live store sources from grounding metadata
+  // Once stream completes, extract live store sources from grounding metadata and token usage
   let sources = [];
+  let usage = null;
   try {
     const finalResponse = await streamResult.response;
     const groundingMetadata = finalResponse.candidates?.[0]?.groundingMetadata || null;
     sources = extractGroundingSources(groundingMetadata);
+
+    if (finalResponse.usageMetadata) {
+      usage = {
+        promptTokens: finalResponse.usageMetadata.promptTokenCount || 0,
+        candidatesTokens: finalResponse.usageMetadata.candidatesTokenCount || 0,
+        totalTokens: finalResponse.usageMetadata.totalTokenCount || 0
+      };
+    }
   } catch {
     sources = [];
   }
 
   return {
     fullText,
-    sources
+    sources,
+    usage
   };
 }
 

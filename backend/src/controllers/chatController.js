@@ -20,7 +20,7 @@ function getUserId(req) {
 }
 
 // Helper to save conversation turn if user is authenticated
-async function maybeSaveTurn(userId, conversationId, messages, response) {
+async function maybeSaveTurn(userId, conversationId, messages, response, modelUsed, latencyMs) {
   if (!userId) return conversationId || null;
   try {
     const lastUserMsg = messages.filter((m) => m.role === 'user').pop();
@@ -29,7 +29,18 @@ async function maybeSaveTurn(userId, conversationId, messages, response) {
       userId,
       conversationId,
       userPrompt: promptText,
-      assistantResponse: response
+      assistantResponse: {
+        text: response.text,
+        sources: response.sources,
+        modelUsed,
+        latencyMs,
+        usage: response.usage,
+        inspector: {
+          usage: response.usage,
+          modelUsed,
+          latencyMs
+        }
+      }
     });
   } catch (err) {
     console.warn('Could not save conversation to database:', err.message);
@@ -62,6 +73,8 @@ async function handleChatStream(req, res, next) {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
+    const startTime = Date.now();
+
     // Stream from Gemini API
     const result = await streamGeminiChat({
       apiKey: activeKey,
@@ -73,18 +86,24 @@ async function handleChatStream(req, res, next) {
       }
     });
 
-    // Save full conversation turn to PostgreSQL
+    const latencyMs = Date.now() - startTime;
+
+    // Save full conversation turn to PostgreSQL with usage & latency
     const finalConversationId = await maybeSaveTurn(
       getUserId(req),
       conversationId,
       messages,
-      { text: result.fullText, sources: result.sources }
+      { text: result.fullText, sources: result.sources, usage: result.usage },
+      model,
+      latencyMs
     );
 
-    // Send final completion event with sources and conversationId
+    // Send final completion event with sources, token usage, latency, and conversationId
     res.write(`data: ${JSON.stringify({
       done: true,
       sources: result.sources,
+      usage: result.usage,
+      latencyMs,
       conversationId: finalConversationId
     })}\n\n`);
 
